@@ -17,9 +17,9 @@ th, td { padding:10px; border:1px solid #1f2937; }
 th { background:#1f2937; text-align:center; }
 td { text-align:right; }
 td.left { text-align:left; }
+.total-row { background:#1f2937; font-weight:bold; }
 button { padding:8px 15px; background:#2563eb; border:none; color:white; cursor:pointer; margin-top:10px; }
 input, select { padding:6px; margin:5px; }
-.expense-box { margin-top:20px; }
 </style>
 </head>
 
@@ -85,7 +85,7 @@ let totalAccommodation=0;
 let totalMgmt=0;
 let totalOwnerPayout=0;
 
-rows.forEach(r=>{
+rows.forEach(function(r){
 
 if(num(r["CANCELED TOTAL PAYOUT"])!==0) return;
 if(!r["CHECK-IN DATE"]) return;
@@ -98,9 +98,9 @@ grouped[listing].push(r);
 
 });
 
-Object.keys(grouped).forEach(listing=>{
+Object.keys(grouped).forEach(function(listing){
 
-grouped[listing].forEach(r=>{
+grouped[listing].forEach(function(r){
 
 let payout=num(r["TOTAL PAYOUT"]);
 let acc=num(r["ACCOMMODATION FARE"]);
@@ -140,7 +140,11 @@ if(ownerType==="pmc"){
 
 html+="</div>";
 
-Object.keys(grouped).forEach(listing=>{
+Object.keys(grouped).forEach(function(listing){
+
+let propertyPayout=0;
+let propertyMgmt=0;
+let propertyOwnerPayout=0;
 
 html+="<div class='property-title'>🏠 "+listing+"</div>";
 html+="<table>";
@@ -157,8 +161,9 @@ if(ownerType==="pmc"){
 
 html+="</tr>";
 
-grouped[listing].forEach(r=>{
+grouped[listing].forEach(function(r){
 
+let payout=num(r["TOTAL PAYOUT"]);
 let acc=num(r["ACCOMMODATION FARE"]);
 let adj=num(r["ACCOMMODATION FARE ADJUSTMENT"]);
 let markup=num(r["MARKUP"]);
@@ -166,6 +171,10 @@ let markup=num(r["MARKUP"]);
 let accommodation=(acc+adj)-markup;
 let mgmt=accommodation*percent;
 let ownerPayout=accommodation-mgmt;
+
+propertyPayout+=payout;              // CORRECTED — real payout
+propertyMgmt+=mgmt;
+propertyOwnerPayout+=ownerPayout;
 
 html+="<tr>";
 html+="<td class='left'>"+(r["CONFIRMATION CODE"]||"")+"</td>";
@@ -181,6 +190,18 @@ if(ownerType==="pmc"){
 html+="</tr>";
 
 });
+
+html+="<tr class='total-row'>";
+html+="<td class='left'>PROPERTY TOTAL PAYOUT</td>";
+html+="<td colspan='2'></td>";
+html+="<td>$"+propertyPayout.toFixed(2)+"</td>";
+html+="<td>$"+propertyMgmt.toFixed(2)+"</td>";
+
+if(ownerType==="pmc"){
+ html+="<td>$"+propertyOwnerPayout.toFixed(2)+"</td>";
+}
+
+html+="</tr>";
 
 html+="</table>";
 

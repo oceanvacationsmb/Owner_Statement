@@ -10,25 +10,19 @@
 body{margin:0;font-family:Arial;background:#fff;color:#000}
 .topbar{background:#f2f2f2;padding:10px;display:flex;justify-content:center;gap:10px;flex-wrap:wrap;border-bottom:2px solid #000}
 select,input{padding:5px;font-size:12px}
-button{
-padding:8px 16px;
-font-size:13px;
-font-weight:bold;
-border:none;
-cursor:pointer;
-}
+button{padding:8px 16px;font-size:13px;font-weight:bold;border:none;cursor:pointer}
 .run-btn{background:#000;color:#fff}
 .pdf-btn{background:#444;color:#fff}
-.finish-btn{background:#888;color:#fff}
+.finish-btn{background:#888;color:#fff;margin-top:5px}
 .content{max-width:850px;margin:auto;padding:20px}
+.header{display:flex;justify-content:space-between}
 .company{font-size:22px;font-weight:900}
 .company-info{font-size:11px}
-.header{display:flex;justify-content:space-between}
 .dates{font-size:12px;font-weight:bold;text-align:right}
 .title{text-align:center;font-size:24px;font-weight:900;margin-top:10px}
 .owner{text-align:center;font-size:20px;font-weight:900;margin-top:5px}
-.meta{text-align:center;font-size:12px;margin-bottom:10px}
-.summary-box{border:2px solid #000;padding:12px;margin:15px 0}
+.meta{text-align:center;font-size:12px;margin-bottom:15px}
+.summary-box{border:2px solid #000;padding:12px;margin-bottom:20px}
 .summary{display:flex;justify-content:space-between;font-size:12px}
 .summary div{text-align:center;flex:1}
 .summary strong{display:block;font-size:14px;margin-top:4px}
@@ -46,7 +40,7 @@ tr:nth-child(even){background:#f4f4f4}
 .expense-table input,.expense-table select{font-size:10px;padding:3px;width:100%;box-sizing:border-box}
 .expense-controls button{font-size:9px;padding:3px 6px}
 @media print{
-.topbar,.finish-btn{display:none}
+.topbar{display:none}
 }
 </style>
 </head>
@@ -63,7 +57,7 @@ tr:nth-child(even){background:#f4f4f4}
 <button class="pdf-btn" onclick="downloadPDF()" id="pdfBtn" disabled>Download PDF</button>
 </div>
 
-<div id="output" class="content"></div>
+<div id="report" class="content"></div>
 
 <script>
 
@@ -89,12 +83,12 @@ Object.keys(owners).forEach(o=>ownerSelect.innerHTML+=`<option>${o}</option>`);
 
 function applyOwnerDefaults(){
 const o=ownerSelect.value;
-const meta=document.getElementById("ownerMeta");
-meta.innerHTML=`<option>${(owners[o].percent*100).toFixed(0)}% | ${owners[o].type.toUpperCase()}</option>`;
+document.getElementById("ownerMeta").innerHTML=
+`<option>${(owners[o].percent*100).toFixed(0)}% | ${owners[o].type.toUpperCase()}</option>`;
 }
 applyOwnerDefaults();
 
-/* DATE */
+/* DATE SETUP */
 const monthSelect=document.getElementById("month");
 const yearSelect=document.getElementById("year");
 const now=new Date();
@@ -117,12 +111,10 @@ function stay(i,o){if(!i||!o)return"";let a=i.split("-"),b=o.split("-");return a
 function lastDay(y,m){return new Date(y,m,0).getDate()}
 
 let propertyTotals={};
-let globalTotals={};
 
 async function runReport(){
 
 propertyTotals={};
-globalTotals={gross:0,acc:0,clean:0,pmc:0,expenses:0,draft:0,owner:0};
 
 const file=document.getElementById("fileInput").files[0];
 if(!file)return;
@@ -137,6 +129,9 @@ const month=parseInt(monthSelect.value);
 const year=parseInt(yearSelect.value);
 const endDay=lastDay(year,month);
 
+const statementDate=new Date(year,month,1);
+const paymentDate=new Date(year,month,5);
+
 let grouped={};
 
 rows.forEach(r=>{
@@ -150,13 +145,89 @@ if(!grouped[listing])grouped[listing]=[];
 grouped[listing].push(r);
 });
 
-let html="";
+let reportHTML="";
 
+/* HEADER */
+reportHTML+=`
+<div class="header">
+<div>
+<div class="company">OCEAN VACATIONS</div>
+<div class="company-info">
+www.oceanvacationsmb.com<br>
+oceanvacationsmb@gmail.com<br>
+843-222-6516
+</div>
+</div>
+<div class="dates">
+Statement Date: ${statementDate.toLocaleDateString()}<br>
+Payment Date: ${paymentDate.toLocaleDateString()}
+</div>
+</div>
+
+<div class="title">RESERVATION REPORT</div>
+<div class="owner">${owner}</div>
+<div class="meta">${month}/1/${year} - ${month}/${endDay}/${year}</div>
+`;
+
+/* PROPERTY CALCULATIONS FIRST */
+Object.keys(grouped).forEach(listing=>{
+let pGross=0,pPMC=0,pClean=0,pDraft=0,pOwner=0;
+
+grouped[listing].forEach(r=>{
+let payout=num(r["TOTAL PAYOUT"]);
+let acc=num(r["ACCOMMODATION FARE"])-num(r["MARKUP"]);
+let clean=num(r["CLEANING FARE"]);
+let pmc=acc*percent;
+let draft=pmc+clean;
+let ownerPay=acc-pmc;
+
+pGross+=payout;
+pPMC+=pmc;
+pClean+=clean;
+pDraft+=draft;
+pOwner+=ownerPay;
+});
+
+propertyTotals[listing]={gross:pGross,pmc:pPMC,clean:pClean,draft:pDraft,owner:pOwner,expenses:0};
+});
+
+/* SUMMARY AT TOP */
+let totalGross=0,totalPMC=0,totalClean=0,totalDraft=0,totalOwner=0,totalExpenses=0;
+
+Object.values(propertyTotals).forEach(p=>{
+totalGross+=p.gross;
+totalPMC+=p.pmc;
+totalClean+=p.clean;
+totalDraft+=p.draft;
+totalOwner+=p.owner;
+});
+
+reportHTML+=`
+<div class="summary-box">
+<div class="summary">
+${type==="draft"
+?`
+<div>Gross Payout<strong>${money(totalGross)}</strong></div>
+<div>PMC<strong>${money(totalPMC)}</strong></div>
+<div>Cleaning<strong>${money(totalClean)}</strong></div>
+<div>Expenses<strong id="globalExpenses">$0.00</strong></div>
+<div>Draft<strong id="globalDraft">${money(totalDraft)}</strong></div>
+`
+:`
+<div>PMC<strong>${money(totalPMC)}</strong></div>
+<div>Expenses<strong id="globalExpenses">$0.00</strong></div>
+<div>Due to Owner<strong id="globalOwner">${money(totalOwner)}</strong></div>
+`}
+</div>
+</div>
+`;
+
+/* NOW TABLES */
 Object.keys(grouped).forEach(listing=>{
 
-let pGross=0,pAcc=0,pClean=0,pPMC=0,pDraft=0,pOwner=0,pExpenses=0;
+let p=propertyTotals[listing];
 
-html+=`
+reportHTML+=`
 <div class="property">
 <div class="property-title">${listing}</div>
 <div class="property-period">${month}/1/${year} - ${month}/${endDay}/${year}</div>
@@ -172,21 +243,13 @@ ${type==="draft"?"<th>Cleaning</th><th>Draft</th>":"<th>Owner</th>"}
 `;
 
 grouped[listing].forEach(r=>{
-let payout=num(r["TOTAL PAYOUT"]);
 let acc=num(r["ACCOMMODATION FARE"])-num(r["MARKUP"]);
 let clean=num(r["CLEANING FARE"]);
 let pmc=acc*percent;
 let draft=pmc+clean;
 let ownerPay=acc-pmc;
 
-pGross+=payout;
-pAcc+=acc;
-pClean+=clean;
-pPMC+=pmc;
-pDraft+=draft;
-pOwner+=ownerPay;
-
-html+=`
+reportHTML+=`
 <tr>
 <td>${r["CONFIRMATION CODE"]}</td>
 <td>${stay(r["CHECK-IN DATE"],r["CHECK-OUT DATE"])}</td>
@@ -199,27 +262,22 @@ ${type==="draft"
 `;
 });
 
-html+=`
+reportHTML+=`
 <tr class="total-row">
-<td>TOTAL</td><td></td>
-<td>${money(pAcc)}</td>
-<td>${money(pPMC)}</td>
+<td>TOTAL</td><td></td><td></td>
+<td>${money(p.pmc)}</td>
 ${type==="draft"
-?`<td>${money(pClean)}</td><td>${money(pDraft)}</td>`
-:`<td>${money(pOwner)}</td>`}
+?`<td>${money(p.clean)}</td><td>${money(p.draft)}</td>`
+:`<td>${money(p.owner)}</td>`}
 </tr>
 </table>
-`;
 
-html+=`
 <div class="property-summary" id="propSummary-${listing}">
 ${type==="draft"
-?`Total Property Payout: ${money(pGross)} | Total PMC: ${money(pPMC)} | Total Cleaning: ${money(pClean)} | Total Expenses: $0.00 | Balance Due: ${money(pDraft)}`
-:`Total PMC: ${money(pPMC)} | Total Expenses: $0.00 | Due to Owner: ${money(pOwner)}`}
+?`Total Property Payout: ${money(p.gross)} | Total PMC: ${money(p.pmc)} | Total Cleaning: ${money(p.clean)} | Total Expenses: $0.00 | Balance Due: ${money(p.draft)}`
+:`Total PMC: ${money(p.pmc)} | Total Expenses: $0.00 | Due to Owner: ${money(p.owner)}`}
 </div>
-`;
 
-html+=`
 <table class="expense-table" id="expense-${listing}">
 <tr>
 <th>Type</th>
@@ -227,7 +285,7 @@ html+=`
 <th>Amount</th>
 <th>Action</th>
 </tr>
-<tr>
+<tr class="add-row">
 <td>
 <select>
 <option>Maintenance</option>
@@ -235,6 +293,8 @@ html+=`
 <option>Pool Cleaning</option>
 <option>Pest Control</option>
 <option>Purchase</option>
+<option>Cleaning</option>
+<option>Service</option>
 </select>
 </td>
 <td><input type="text"></td>
@@ -244,25 +304,16 @@ html+=`
 </table>
 
 <button class="finish-btn" onclick="finishExpenses('${listing}',this)">Finish Expenses</button>
+
 </div>
 `;
-
-propertyTotals[listing]={gross:pGross,acc:pAcc,clean:pClean,pmc:pPMC,draft:pDraft,owner:pOwner,expenses:0};
-
-globalTotals.gross+=pGross;
-globalTotals.acc+=pAcc;
-globalTotals.clean+=pClean;
-globalTotals.pmc+=pPMC;
-if(type==="draft")globalTotals.draft+=pDraft;
-else globalTotals.owner+=pOwner;
-
 });
 
-document.getElementById("output").innerHTML=html;
+document.getElementById("report").innerHTML=reportHTML;
 document.getElementById("pdfBtn").disabled=false;
 }
 
-/* EXPENSE LOGIC */
+/* EXPENSE */
 function addExpense(listing,btn){
 
 let row=btn.closest("tr");
@@ -278,13 +329,11 @@ newRow.innerHTML=`
 <td>${type}</td>
 <td>${desc}</td>
 <td>${money(amt)}</td>
-<td>
-<button onclick="deleteExpense(this,'${listing}',${amt})">Delete</button>
-</td>
+<td><button onclick="deleteExpense(this,'${listing}',${amt})">Delete</button></td>
 `;
 
 propertyTotals[listing].expenses+=amt;
-updatePropertySummary(listing);
+updateTotals(listing);
 
 row.querySelector("input[type=text]").value="";
 row.querySelector("input[type=number]").value="";
@@ -293,13 +342,14 @@ row.querySelector("input[type=number]").value="";
 function deleteExpense(btn,listing,amt){
 btn.closest("tr").remove();
 propertyTotals[listing].expenses-=amt;
-updatePropertySummary(listing);
+updateTotals(listing);
 }
 
-function updatePropertySummary(listing){
+function updateTotals(listing){
 
-const type=owners[ownerSelect.value].type;
+let type=owners[ownerSelect.value].type;
 let p=propertyTotals[listing];
+
 let summary=document.getElementById(`propSummary-${listing}`);
 
 if(type==="draft"){
@@ -311,18 +361,27 @@ let newDue=p.owner-p.expenses;
 summary.innerHTML=
 `Total PMC: ${money(p.pmc)} | Total Expenses: ${money(p.expenses)} | Due to Owner: ${money(newDue)}`;
 }
+
+updateGlobal();
+}
+
+function updateGlobal(){
+let totalExpenses=Object.values(propertyTotals).reduce((a,b)=>a+b.expenses,0);
+document.getElementById("globalExpenses").innerText=money(totalExpenses);
 }
 
 function finishExpenses(listing,btn){
-document.getElementById(`expense-${listing}`).remove();
+document.querySelector(`#expense-${listing} .add-row`).remove();
+document.querySelectorAll(`#expense-${listing} button`).forEach(b=>b.remove());
 btn.remove();
 }
 
 function downloadPDF(){
 html2pdf().set({margin:5,jsPDF:{unit:"mm",format:"a4"}})
-.from(document.body).save("Reservation_Report.pdf");
+.from(document.getElementById("report")).save("Reservation_Report.pdf");
 }
 
 </script>
+
 </body>
 </html>

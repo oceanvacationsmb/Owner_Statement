@@ -12,6 +12,7 @@ body{margin:0;font-family:Arial;background:#fff;color:#000}
 button{padding:8px 16px;font-weight:bold;border:none;cursor:pointer}
 .run-btn{background:#000;color:#fff}
 .pdf-btn{background:#444;color:#fff}
+.finish-btn{background:#888;color:#fff;margin-top:5px}
 .content{max-width:900px;margin:auto;padding:20px}
 .page-break{page-break-after:always}
 .header{display:flex;justify-content:space-between}
@@ -20,6 +21,7 @@ button{padding:8px 16px;font-weight:bold;border:none;cursor:pointer}
 .title{text-align:center;font-size:24px;font-weight:900;margin-top:10px}
 .owner{text-align:center;font-size:18px;font-weight:bold;margin-top:5px}
 .period{text-align:center;font-size:12px;margin-bottom:15px}
+.section-title{font-size:18px;font-weight:bold;margin-top:10px}
 .summary-box{border:2px solid #000;padding:10px;margin:15px 0}
 .summary{display:flex;justify-content:space-between;font-size:12px}
 .summary div{text-align:center;flex:1}
@@ -31,7 +33,10 @@ th,td{border:1px solid #000;padding:4px;text-align:center}
 th{background:#000;color:#fff}
 .total-row{font-weight:bold;background:#e5e5e5}
 .expense-table input,.expense-table select{width:100%;font-size:10px}
-@media print{.topbar{display:none}}
+.attachment{margin-top:10px}
+@media print{
+.topbar,.finish-btn,.add-row button{display:none}
+}
 </style>
 </head>
 
@@ -78,8 +83,12 @@ function stay(i,o){if(!i||!o)return"";let a=i.split("-"),b=o.split("-");return a
 function lastDay(y,m){return new Date(y,m,0).getDate()}
 
 let propertyTotals={};
+let masterTotals={};
 
 async function runReport(){
+
+propertyTotals={};
+masterTotals={gross:0,acc:0,clean:0,pmc:0,expenses:0,draft:0,owner:0};
 
 const file=document.getElementById("fileInput").files[0];
 if(!file)return;
@@ -98,7 +107,6 @@ const statementDate=new Date(year,month,1);
 const paymentDate=new Date(year,month,5);
 
 let grouped={};
-propertyTotals={};
 
 rows.forEach(r=>{
 if(!r["CHECK-IN DATE"])return;
@@ -113,11 +121,30 @@ grouped[listing].push(r);
 
 let reportHTML="";
 
-/* PAGE 1 MASTER SUMMARY */
+/* HEADER */
+reportHTML+=`
+<div class="header">
+<div>
+<div class="company">OCEAN VACATIONS</div>
+<div class="company-info">
+www.oceanvacationsmb.com<br>
+oceanvacationsmb@gmail.com<br>
+843-222-6516
+</div>
+</div>
+<div>
+Statement Date: ${statementDate.toLocaleDateString()}<br>
+Payment Date: ${paymentDate.toLocaleDateString()}
+</div>
+</div>
 
-let totalAcc=0,totalClean=0,totalPMC=0,totalDraft=0,totalOwner=0,totalGross=0;
+<div class="title">RESERVATION REPORT</div>
+<div class="owner">${owner}</div>
+<div class="period">${month}/1/${year} - ${month}/${endDay}/${year}</div>
+`;
 
 Object.keys(grouped).forEach(listing=>{
+
 let pGross=0,pAcc=0,pClean=0,pPMC=0,pDraft=0,pOwner=0;
 
 grouped[listing].forEach(r=>{
@@ -138,51 +165,34 @@ pOwner+=ownerPay;
 
 propertyTotals[listing]={gross:pGross,acc:pAcc,clean:pClean,pmc:pPMC,draft:pDraft,owner:pOwner,expenses:0};
 
-totalAcc+=pAcc;
-totalClean+=pClean;
-totalPMC+=pPMC;
-totalDraft+=pDraft;
-totalOwner+=pOwner;
-totalGross+=pGross;
+masterTotals.gross+=pGross;
+masterTotals.acc+=pAcc;
+masterTotals.clean+=pClean;
+masterTotals.pmc+=pPMC;
+masterTotals.draft+=pDraft;
+masterTotals.owner+=pOwner;
 });
 
+/* MASTER SUMMARY PAGE */
+
 reportHTML+=`
-<div>
-<div class="header">
-<div>
-<div class="company">OCEAN VACATIONS</div>
-<div class="company-info">
-www.oceanvacationsmb.com<br>
-oceanvacationsmb@gmail.com<br>
-843-222-6516
-</div>
-</div>
-<div>
-Statement Date: ${statementDate.toLocaleDateString()}<br>
-Payment Date: ${paymentDate.toLocaleDateString()}
-</div>
-</div>
-
-<div class="title">RESERVATION REPORT</div>
-<div class="owner">${owner}</div>
-<div class="period">${month}/1/${year} - ${month}/${endDay}/${year}</div>
-
+<div class="section-title">SUMMARY</div>
 <div class="summary-box">
 <div class="summary">
 ${type==="draft"
 ?`
-<div>Gross<strong>${money(totalGross)}</strong></div>
-<div>Accommodation<strong>${money(totalAcc)}</strong></div>
-<div>Cleaning<strong>${money(totalClean)}</strong></div>
-<div>PMC<strong>${money(totalPMC)}</strong></div>
-<div>Draft<strong>${money(totalDraft)}</strong></div>
+<div>Gross<strong>${money(masterTotals.gross)}</strong></div>
+<div>Accommodation<strong>${money(masterTotals.acc)}</strong></div>
+<div>Cleaning<strong>${money(masterTotals.clean)}</strong></div>
+<div>Expenses<strong id="masterExp">$0.00</strong></div>
+<div>Draft<strong id="masterBal">${money(masterTotals.draft)}</strong></div>
 `
 :`
-<div>Accommodation<strong>${money(totalAcc)}</strong></div>
-<div>PMC<strong>${money(totalPMC)}</strong></div>
-<div>Due<strong>${money(totalOwner)}</strong></div>
+<div>Accommodation<strong>${money(masterTotals.acc)}</strong></div>
+<div>PMC<strong>${money(masterTotals.pmc)}</strong></div>
+<div>Expenses<strong id="masterExp">$0.00</strong></div>
+<div>Due<strong id="masterBal">${money(masterTotals.owner)}</strong></div>
 `}
-</div>
 </div>
 </div>
 
@@ -256,9 +266,8 @@ reportHTML+=`
 <th>Type</th>
 <th>Description</th>
 <th>Amount</th>
-<th>Action</th>
 </tr>
-<tr>
+<tr class="add-row">
 <td>
 <select>
 <option>Maintenance</option>
@@ -272,9 +281,14 @@ reportHTML+=`
 </td>
 <td><input type="text"></td>
 <td><input type="number" step="0.01"></td>
-<td><button onclick="addExpense('${listing}',this)">Add</button></td>
 </tr>
 </table>
+
+<input type="file" accept=".pdf,.jpg,.jpeg,.png" onchange="attachFile(event,'${listing}')">
+
+<div id="attachment-${listing}" class="attachment"></div>
+
+<button class="finish-btn" onclick="finishExpenses('${listing}',this)">Finish Expenses</button>
 
 </div>
 
@@ -286,37 +300,23 @@ document.getElementById("report").innerHTML=reportHTML;
 }
 
 /* EXPENSE LOGIC */
-function addExpense(listing,btn){
-let row=btn.closest("tr");
-let amt=parseFloat(row.querySelector("input[type=number]").value)||0;
-if(!amt)return;
-
-propertyTotals[listing].expenses+=amt;
-
-let expField=document.getElementById(`exp-${listing}`);
-expField.innerText=money(propertyTotals[listing].expenses);
-
-let type=owners[ownerSelect.value].type;
-
-if(type==="draft"){
-let newBal=propertyTotals[listing].draft+propertyTotals[listing].expenses;
-document.getElementById(`bal-${listing}`).innerText=money(newBal);
-}else{
-let newBal=propertyTotals[listing].owner-propertyTotals[listing].expenses;
-document.getElementById(`bal-${listing}`).innerText=money(newBal);
+function finishExpenses(listing,btn){
+let table=document.getElementById(`expense-${listing}`);
+table.querySelector(".add-row").remove();
+btn.remove();
 }
 
-let table=document.getElementById(`expense-${listing}`);
-let newRow=table.insertRow(table.rows.length-1);
-newRow.innerHTML=`
-<td>${row.querySelector("select").value}</td>
-<td>${row.querySelector("input[type=text]").value}</td>
-<td>${money(amt)}</td>
-<td><button onclick="this.parentElement.parentElement.remove()">Delete</button></td>
-`;
+/* ATTACH FILE */
+function attachFile(event,listing){
+let file=event.target.files[0];
+if(!file)return;
 
-row.querySelector("input[type=text]").value="";
-row.querySelector("input[type=number]").value="";
+let reader=new FileReader();
+reader.onload=function(e){
+let container=document.getElementById(`attachment-${listing}`);
+container.innerHTML=`<embed src="${e.target.result}" width="100%" height="600px">`;
+}
+reader.readAsDataURL(file);
 }
 
 function downloadPDF(){

@@ -60,7 +60,6 @@ function processCSV() {
         complete: function(results) {
 
             const data = results.data;
-            const headers = results.meta.fields;
 
             let totalBase = 0;
             let totalManagement = 0;
@@ -68,31 +67,38 @@ function processCSV() {
             let totalPayout = 0;
             let totalMarkup = 0;
 
-            let tableHTML = "<table><tr>";
-
-            // Always show confirmation first
+            let tableHTML = "<table>";
+            tableHTML += "<tr>";
             tableHTML += "<th>CONFIRMATION CODE</th>";
+            tableHTML += "<th>LISTING</th>";
+            tableHTML += "<th>PLATFORM</th>";
+            tableHTML += "<th>CHECK-IN</th>";
+            tableHTML += "<th>CHECK-OUT</th>";
+            tableHTML += "<th>ACCOMMODATION</th>";
+            tableHTML += "<th>MARKUP</th>";
+            tableHTML += "<th>CITY TAX</th>";
+            tableHTML += "<th>STATE TAX</th>";
+            tableHTML += "<th>COUNTY TAX</th>";
+            tableHTML += "<th>OCCUPANCY TAX</th>";
+            tableHTML += "<th>TRUE BASE</th>";
+            tableHTML += "<th>MANAGEMENT</th>";
+            tableHTML += "<th>PAYOUT</th>";
+            tableHTML += "</tr>";
 
-            // Show all original columns
-            headers.forEach(col => {
-                if (col !== "CONFIRMATION CODE") {
-                    tableHTML += `<th>${col}</th>`;
-                }
-            });
+            data.forEach(function(row) {
 
-            tableHTML += `
-                <th>TRUE BASE</th>
-                <th>MANAGEMENT</th>
-            </tr>
-            `;
-
-            data.forEach(row => {
+                if (cleanNumber(row["CANCELED TOTAL PAYOUT"]) !== 0) return;
 
                 const acc = cleanNumber(row["ACCOMMODATION FARE"]);
                 const adjustment = cleanNumber(row["ACCOMMODATION FARE ADJUSTMENT"]);
                 const markup = cleanNumber(row["MARKUP"]);
                 const cleaning = cleanNumber(row["CLEANING FARE"]);
                 const payout = cleanNumber(row["TOTAL PAYOUT"]);
+
+                const cityTax = cleanNumber(row["CITY TAX"]);
+                const stateTax = cleanNumber(row["STATE TAX"]);
+                const countyTax = cleanNumber(row["COUNTY TAX"]);
+                const occupancyTax = cleanNumber(row["OCCUPANCY TAX"]);
 
                 const trueBase = (acc + adjustment) - markup;
                 const management = trueBase * percent;
@@ -104,37 +110,35 @@ function processCSV() {
                 totalMarkup += markup;
 
                 tableHTML += "<tr>";
-
-                // Confirmation always first
-                tableHTML += `<td class="left">${row["CONFIRMATION CODE"] || ""}</td>`;
-
-                headers.forEach(col => {
-                    if (col !== "CONFIRMATION CODE") {
-                        tableHTML += `<td>${row[col] || ""}</td>`;
-                    }
-                });
-
-                tableHTML += `
-                    <td>$${trueBase.toFixed(2)}</td>
-                    <td>$${management.toFixed(2)}</td>
-                </tr>
-                `;
+                tableHTML += "<td class='left'>" + (row["CONFIRMATION CODE"] || "") + "</td>";
+                tableHTML += "<td class='left'>" + (row["LISTING'S NICKNAME"] || "") + "</td>";
+                tableHTML += "<td class='left'>" + (row["PLATFORM"] || "") + "</td>";
+                tableHTML += "<td>" + (row["CHECK-IN DATE"] || "") + "</td>";
+                tableHTML += "<td>" + (row["CHECK-OUT DATE"] || "") + "</td>";
+                tableHTML += "<td>$" + acc.toFixed(2) + "</td>";
+                tableHTML += "<td>$" + markup.toFixed(2) + "</td>";
+                tableHTML += "<td>$" + cityTax.toFixed(2) + "</td>";
+                tableHTML += "<td>$" + stateTax.toFixed(2) + "</td>";
+                tableHTML += "<td>$" + countyTax.toFixed(2) + "</td>";
+                tableHTML += "<td>$" + occupancyTax.toFixed(2) + "</td>";
+                tableHTML += "<td>$" + trueBase.toFixed(2) + "</td>";
+                tableHTML += "<td>$" + management.toFixed(2) + "</td>";
+                tableHTML += "<td>$" + payout.toFixed(2) + "</td>";
+                tableHTML += "</tr>";
             });
 
             tableHTML += "</table>";
 
-            let summaryHTML = `
-                <h3>Summary</h3>
-                Total True Accommodation: $${totalBase.toFixed(2)}<br>
-                Total Management: $${totalManagement.toFixed(2)}<br>
-                Total Cleaning: $${totalCleaning.toFixed(2)}<br>
-                Total Markup: $${totalMarkup.toFixed(2)}<br><br>
-            `;
+            let summaryHTML = "<h3>Summary</h3>";
+            summaryHTML += "Total True Accommodation: $" + totalBase.toFixed(2) + "<br>";
+            summaryHTML += "Total Management: $" + totalManagement.toFixed(2) + "<br>";
+            summaryHTML += "Total Cleaning: $" + totalCleaning.toFixed(2) + "<br>";
+            summaryHTML += "Total Markup: $" + totalMarkup.toFixed(2) + "<br><br>";
 
             if (ownerType === "direct") {
-                summaryHTML += `<strong>Amount To Draft From Owner: $${(totalManagement + totalCleaning).toFixed(2)}</strong>`;
+                summaryHTML += "<strong>Amount To Draft From Owner: $" + (totalManagement + totalCleaning).toFixed(2) + "</strong>";
             } else {
-                summaryHTML += `<strong>Amount To Pay Owner: ${(totalPayout - totalManagement - totalCleaning).toFixed(2)}</strong>`;
+                summaryHTML += "<strong>Amount To Pay Owner: $" + (totalPayout - totalManagement - totalCleaning).toFixed(2) + "</strong>";
             }
 
             document.getElementById("summary").innerHTML = summaryHTML;

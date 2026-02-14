@@ -56,7 +56,8 @@ margin-top:6px
 }
 
 .property-section{text-align:left;margin-top:34px;page-break-inside:avoid}
-.property-title{font-size:20px;margin-bottom:10px}
+.property-title{font-size:20px;margin-bottom:6px;color:#e5e7eb}
+.property-period{font-size:13px;color:#9ca3af;margin-bottom:10px}
 
 table{width:100%;border-collapse:collapse;background:#111827}
 th,td{padding:10px;border:1px solid #1f2937}
@@ -75,14 +76,17 @@ border:none;
 cursor:pointer;
 }
 
+/* PDF / PRINT — WHITE ONLY */
 @media print{
 body{background:white;color:black}
 .topbar{display:none}
 
+#statement{color:black;background:white}
+
 table{background:white}
-th{background:black;color:white}
-td{background:white;color:black;border:1px solid #ccc}
-tr:nth-child(even) td{background:#f3f4f6}
+th{background:white;color:black;border:1px solid #000}
+td{background:white;color:black;border:1px solid #000}
+tr:nth-child(even) td{background:#f5f5f5}
 
 .property-section{page-break-before:always}
 }
@@ -155,8 +159,19 @@ function stay(i,o){if(!i||!o)return"";let a=i.split("-"),b=o.split("-");return a
 function lastDay(y,m){return new Date(y,m,0).getDate()}
 function money(x){return "$"+(Number(x)||0).toFixed(2)}
 
-/* ADD EXPENSE ROW */
-function addExpenseRow(tableId){
+function normalizePlatform(p){
+p=(p||"").toLowerCase();
+if(p.includes("manual")) return "Direct";
+if(p.includes("vrbo")) return "VRBO";
+return p.charAt(0).toUpperCase()+p.slice(1);
+}
+
+/* EXPENSE STORAGE */
+const propertyExpenses={};
+
+function addExpenseRow(tableId,listing){
+if(!propertyExpenses[listing]) propertyExpenses[listing]=0;
+
 const table=document.getElementById(tableId);
 const row=table.insertRow(table.rows.length-1);
 
@@ -172,7 +187,10 @@ row.innerHTML=`
 </select>
 </td>
 <td colspan="2"><input type="text" placeholder="Description"></td>
-<td><input type="number" step="0.01" value="0"></td>
+<td>
+<input type="number" step="0.01" value="0"
+onchange="propertyExpenses['${listing}']=num(this.value);runStatement();">
+</td>
 `;
 }
 
@@ -192,7 +210,7 @@ const percent=owners[owner].percent;
 const payType=owners[owner].type;
 const endDay=lastDay(year,month);
 
-let totalAcc=0,totalMgmt=0,totalOwner=0,totalDraft=0,totalCleaning=0;
+let totalAcc=0,totalMgmt=0,totalOwner=0,totalDraft=0,totalCleaning=0,totalExpenses=0;
 let tablesHTML="";
 let index=0;
 
@@ -215,6 +233,7 @@ const tableId="table"+index++;
 let table=`
 <div class="property-section">
 <div class="property-title">🏠 ${listing}</div>
+<div class="property-period">${new Date(year,month-1).toLocaleString('default',{month:'long'})} 1 - ${endDay}, ${year}</div>
 <table id="${tableId}">
 <tr>
 <th>Reservation ID</th>
@@ -240,7 +259,7 @@ if(payType==="payout") totalOwner+=ownerPay; else totalDraft+=draft;
 table+=`
 <tr>
 <td class="left">${r["CONFIRMATION CODE"]||""}</td>
-<td class="left">${r["PLATFORM"]||""}</td>
+<td class="left">${normalizePlatform(r["PLATFORM"])}</td>
 <td>${stay(r["CHECK-IN DATE"],r["CHECK-OUT DATE"])}</td>
 <td>${money(acc)}</td>
 <td>${money(mgmt)}</td>
@@ -248,16 +267,21 @@ ${payType==="payout"?`<td>${money(ownerPay)}</td>`:`<td>${money(cleaning)}</td><
 </tr>`;
 });
 
+const expenses=propertyExpenses[listing]||0;
+totalExpenses+=expenses;
+
 table+=`
 <tr class="total-row">
 <td class="left">TOTAL</td><td></td><td></td>
 <td>${money(pAcc)}</td>
 <td>${money(pMgmt)}</td>
-${payType==="payout"?`<td>${money(pOwner)}</td>`:`<td>${money(pCleaning)}</td><td>${money(pDraft)}</td>`}
+${payType==="payout"
+?`<td>${money(pOwner-expenses)}</td>`
+:`<td>${money(pCleaning)}</td><td>${money(pDraft+expenses)}</td>`}
 </tr>
 </table>
 
-<button class="add-expense" onclick="addExpenseRow('${tableId}')">+ Add Expense</button>
+<button class="add-expense" onclick="addExpenseRow('${tableId}','${listing}')">+ Add Expense</button>
 </div>`;
 
 tablesHTML+=table;
@@ -268,10 +292,11 @@ let summary=`
 <div class="summary">
 <div class="summary-box">ACCOMMODATION<span>${money(totalAcc)}</span></div>
 <div class="summary-box">PMC COMMISSION<span>${money(totalMgmt)}</span></div>
-<div class="summary-box">EXPENSES<span>${money(totalCleaning)}</span></div>
+<div class="summary-box">CLEANING FEE<span>${money(totalCleaning)}</span></div>
+<div class="summary-box">EXPENSES<span>${money(totalExpenses)}</span></div>
 ${payType==="payout"
-?`<div class="summary-box">OWNER PAYOUT<span>${money(totalOwner)}</span></div>`
-:`<div class="summary-box">DRAFT FROM OWNER<span>${money(totalDraft)}</span></div>`}
+?`<div class="summary-box">OWNER PAYOUT<span>${money(totalOwner-totalExpenses)}</span></div>`
+:`<div class="summary-box">DRAFT FROM OWNER<span>${money(totalDraft+totalExpenses)}</span></div>`}
 </div>`;
 
 /* RENDER */

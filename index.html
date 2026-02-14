@@ -7,15 +7,54 @@
 body { background:#0f172a; color:#e5e7eb; font-family:Arial; padding:40px; }
 h1 { text-align:center; font-size:40px; }
 .owner { text-align:center; font-size:32px; color:#facc15; margin-top:10px; }
+
 .kpi { display:flex; justify-content:space-between; margin-top:30px; }
 .kpi div { text-align:center; flex:1; }
 .kpi span { display:block; font-size:26px; margin-top:6px; }
+
 .property-title { font-size:22px; margin-top:40px; }
-table { width:100%; border-collapse:collapse; margin-top:10px; background:#111827; }
-th,td { padding:8px; border:1px solid #1f2937; text-align:right; }
-th { background:#1f2937; }
+
+table {
+ width:100%;
+ border-collapse:collapse;
+ margin-top:15px;
+ background:#111827;
+ border-radius:8px;
+ overflow:hidden;
+}
+
+th, td {
+ padding:10px;
+ border:1px solid #1f2937;
+}
+
+th {
+ background:#1f2937;
+ text-align:center;
+ font-weight:bold;
+}
+
+td { text-align:right; }
 td.left { text-align:left; }
-.total-row { background:#1f2937; font-weight:bold; }
+
+.total-row {
+ background:#1f2937;
+ font-weight:bold;
+}
+
+button {
+ padding:10px 20px;
+ background:#2563eb;
+ border:none;
+ color:white;
+ cursor:pointer;
+ margin-top:15px;
+}
+
+input, select {
+ padding:8px;
+ margin:5px;
+}
 </style>
 </head>
 
@@ -71,9 +110,8 @@ let rows=res.data;
 let grouped={};
 
 let totalReportTax=0;
-let totalTrueAcc=0;
+let totalNetAcc=0;
 let totalMgmt=0;
-let totalNet=0;
 
 rows.forEach(r=>{
 
@@ -97,45 +135,46 @@ let markup=num(r["MARKUP"]);
 
 let trueAcc=(acc+adj)-markup;
 let mgmt=trueAcc*percent;
-let net=payout-mgmt;
+let netAcc=trueAcc-mgmt;
 
 totalReportTax+=payout;
-totalTrueAcc+=trueAcc;
+totalNetAcc+=netAcc;
 totalMgmt+=mgmt;
-totalNet+=net;
 
 });
 
 });
 
-let draftAmount=ownerType==="direct"
+let draftAmount = ownerType==="direct"
  ? totalMgmt
- : totalNet;
+ : totalNetAcc;
 
 let html="";
 html+="<div class='owner'>"+owner+"</div>";
 
 html+="<div class='kpi'>";
 html+="<div>REPORT TAX<span>$"+totalReportTax.toFixed(2)+"</span></div>";
-html+="<div>TOTAL TRUE ACCOMMODATION<span>$"+totalTrueAcc.toFixed(2)+"</span></div>";
-html+="<div>PMC COMM<span>$"+totalMgmt.toFixed(2)+"</span></div>";
+html+="<div>NET ACCOMMODATION<span>$"+totalNetAcc.toFixed(2)+"</span></div>";
+html+="<div>PMC COMMISSION<span>$"+totalMgmt.toFixed(2)+"</span></div>";
 html+="<div>"+(ownerType==="direct"?"DRAFT FROM OWNER":"PAY OWNER")+"<span>$"+draftAmount.toFixed(2)+"</span></div>";
 html+="</div>";
 
 Object.keys(grouped).forEach(listing=>{
 
+let propertyNet=0;
+let propertyMgmt=0;
 let propertyPayout=0;
-let propertyTrue=0;
 
 html+="<div class='property-title'>🏠 "+listing+"</div>";
 
 html+="<table>";
 html+="<tr>";
-html+="<th>ID</th>";
-html+="<th>STAY</th>";
-html+="<th>TRUE ACCOMMODATION</th>";
-html+="<th>PMC COMM</th>";
-html+="<th>NET</th>";
+html+="<th>Reservation ID</th>";
+html+="<th>Platform</th>";
+html+="<th>Stay</th>";
+html+="<th>Accommodation</th>";
+html+="<th>PMC</th>";
+html+="<th>Net Accommodation</th>";
 html+="</tr>";
 
 grouped[listing].forEach(r=>{
@@ -147,39 +186,15 @@ let markup=num(r["MARKUP"]);
 
 let trueAcc=(acc+adj)-markup;
 let mgmt=trueAcc*percent;
-let net=payout-mgmt;
+let netAcc=trueAcc-mgmt;
 
+propertyNet+=netAcc;
+propertyMgmt+=mgmt;
 propertyPayout+=payout;
-propertyTrue+=trueAcc;
 
 html+="<tr>";
 html+="<td class='left'>"+(r["CONFIRMATION CODE"]||"")+"</td>";
+html+="<td class='left'>"+(r["PLATFORM"]||"")+"</td>";
 html+="<td>"+stay(r["CHECK-IN DATE"],r["CHECK-OUT DATE"])+"</td>";
 html+="<td>$"+trueAcc.toFixed(2)+"</td>";
-html+="<td>$"+mgmt.toFixed(2)+"</td>";
-html+="<td>$"+net.toFixed(2)+"</td>";
-html+="</tr>";
-
-});
-
-html+="<tr class='total-row'>";
-html+="<td colspan='2'>PROPERTY TOTAL PAYOUT</td>";
-html+="<td>$"+propertyTrue.toFixed(2)+"</td>";
-html+="<td colspan='2'>$"+propertyPayout.toFixed(2)+"</td>";
-html+="</tr>";
-
-html+="</table>";
-
-});
-
-document.getElementById("output").innerHTML=html;
-
-}
-});
-
-}
-
-</script>
-
-</body>
-</html>
+html+

@@ -197,4 +197,32 @@ html+="<td class='left'>"+(r["CONFIRMATION CODE"]||"")+"</td>";
 html+="<td class='left'>"+(r["PLATFORM"]||"")+"</td>";
 html+="<td>"+stay(r["CHECK-IN DATE"],r["CHECK-OUT DATE"])+"</td>";
 html+="<td>$"+trueAcc.toFixed(2)+"</td>";
-html+
+html+="<td>$"+mgmt.toFixed(2)+"</td>";
+html+="<td>$"+netAcc.toFixed(2)+"</td>";
+html+="</tr>";
+
+});
+
+html+="<tr class='total-row'>";
+html+="<td class='left'>PROPERTY TOTAL PAYOUT</td>";
+html+="<td colspan='2'></td>";
+html+="<td>$"+propertyPayout.toFixed(2)+"</td>";
+html+="<td>$"+propertyMgmt.toFixed(2)+"</td>";
+html+="<td>$"+propertyNet.toFixed(2)+"</td>";
+html+="</tr>";
+
+html+="</table>";
+
+});
+
+document.getElementById("output").innerHTML=html;
+
+}
+});
+
+}
+
+</script>
+
+</body>
+</html>

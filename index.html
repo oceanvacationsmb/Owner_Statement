@@ -1,66 +1,71 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Owner Statement</title>
+<title>Reservation Statement</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 
 <style>
 body { margin:0; font-family:Arial; background:#0f172a; color:#e5e7eb; }
 
-.wrapper { display:flex; }
-
-.sidebar {
- width:260px;
+/* TOP CONTROL BAR */
+.topbar {
  background:#111827;
- padding:25px;
- height:100vh;
- box-sizing:border-box;
+ padding:15px 30px;
+ display:flex;
+ align-items:center;
+ gap:15px;
+ flex-wrap:wrap;
+ border-bottom:1px solid #1f2937;
 }
 
-.sidebar h3 { margin-top:0; }
-
-.sidebar select,
-.sidebar input,
-.sidebar button {
- width:100%;
- margin-bottom:12px;
- padding:8px;
- border:none;
+.topbar select,
+.topbar input,
+.topbar button {
+ padding:6px 10px;
  border-radius:4px;
+ border:none;
 }
 
-.sidebar button {
+.topbar button {
  background:#2563eb;
  color:white;
  cursor:pointer;
 }
 
+/* MAIN CONTENT */
 .content {
- flex:1;
- padding:40px;
+ padding:50px;
+ max-width:1300px;
+ margin:auto;
 }
 
-.header {
+/* HEADER */
+.title {
  text-align:center;
- margin-bottom:30px;
-}
-
-.owner-name {
- font-size:40px;
- color:#facc15;
+ font-size:34px;
+ letter-spacing:1px;
 }
 
 .period {
- font-size:18px;
+ text-align:center;
+ font-size:16px;
  color:#9ca3af;
  margin-top:5px;
 }
 
+.owner {
+ text-align:center;
+ font-size:42px;
+ color:#facc15;
+ margin-top:15px;
+}
+
+/* SUMMARY */
 .summary {
  display:flex;
  justify-content:space-between;
  margin-top:35px;
- margin-bottom:45px;
+ margin-bottom:50px;
 }
 
 .summary-box {
@@ -71,11 +76,12 @@ body { margin:0; font-family:Arial; background:#0f172a; color:#e5e7eb; }
 .summary-box span {
  display:block;
  font-size:28px;
- margin-top:8px;
+ margin-top:6px;
 }
 
+/* TABLES */
 .property-title {
- font-size:22px;
+ font-size:20px;
  margin-top:40px;
  margin-bottom:10px;
 }
@@ -84,7 +90,7 @@ table {
  width:100%;
  border-collapse:collapse;
  background:#111827;
- margin-bottom:30px;
+ margin-bottom:40px;
 }
 
 th, td {
@@ -109,10 +115,8 @@ td.left { text-align:left; }
 
 <body>
 
-<div class="wrapper">
-
-<div class="sidebar">
-<h3>Controls</h3>
+<!-- TOP MENU -->
+<div class="topbar">
 
 <select id="owner">
 <option value="Eran">Eran</option>
@@ -131,17 +135,16 @@ td.left { text-align:left; }
 </select>
 
 <input type="file" id="csvFile" accept=".csv">
-<button onclick="generate()">Create Statement</button>
+
+<button onclick="generate()">Generate Statement</button>
 
 </div>
 
 <div class="content" id="output"></div>
 
-</div>
-
 <script>
 
-// Auto populate month/year dropdown
+/* Populate Month & Year */
 const monthSelect=document.getElementById("month");
 const yearSelect=document.getElementById("year");
 const now=new Date();
@@ -220,10 +223,14 @@ grouped[listing].push(r);
 
 });
 
-let html=`<div class="header">
-<div class="owner-name">${owner}</div>
-<div class="period">${new Date(year,month-1).toLocaleString('default',{month:'short'})} 1 - ${new Date(year,month-1).toLocaleString('default',{month:'short'})} ${endDay} ${year}</div>
-</div>`;
+let html=`
+<div class="title">RESERVATION STATEMENT</div>
+<div class="period">
+${new Date(year,month-1).toLocaleString('default',{month:'long'})} 1 - 
+${new Date(year,month-1).toLocaleString('default',{month:'long'})} ${endDay}, ${year}
+</div>
+<div class="owner">${owner}</div>
+`;
 
 Object.keys(grouped).forEach(function(listing){
 
@@ -232,17 +239,6 @@ let propertyMgmt=0;
 let propertyCleaning=0;
 let propertyOwner=0;
 let propertyDraft=0;
-
-html+=`<div class="property-title">🏠 ${listing}</div>`;
-html+=`<table>
-<tr>
-<th>Reservation ID</th>
-<th>Platform</th>
-<th>Stay</th>
-<th>True Accommodation</th>
-<th>PMC</th>
-${ownerType==="pmc"?"<th>Owner Payout</th>":"<th>Cleaning</th><th>Draft From Owner</th>"}
-</tr>`;
 
 grouped[listing].forEach(function(r){
 
@@ -276,7 +272,32 @@ if(ownerType==="pmc"){
  totalDraft+=draft;
 }
 
-html+=`<tr>
+});
+
+html+=`
+<div class="property-title">🏠 ${listing}</div>
+<table>
+<tr>
+<th>Reservation ID</th>
+<th>Platform</th>
+<th>Stay</th>
+<th>True Accommodation</th>
+<th>PMC</th>
+${ownerType==="pmc"?"<th>Owner Payout</th>":"<th>Cleaning</th><th>Draft From Owner</th>"}
+</tr>`;
+
+grouped[listing].forEach(function(r){
+
+let acc=num(r["ACCOMMODATION FARE"]);
+let markup=num(r["MARKUP"]);
+let cleaning=num(r["CLEANING FARE"]);
+let trueAcc=acc-markup;
+let mgmt=trueAcc*percent;
+let ownerPay=trueAcc-mgmt;
+let draft=mgmt+cleaning;
+
+html+=`
+<tr>
 <td class="left">${r["CONFIRMATION CODE"]||""}</td>
 <td class="left">${r["PLATFORM"]||""}</td>
 <td>${stay(r["CHECK-IN DATE"],r["CHECK-OUT DATE"])}</td>
@@ -288,24 +309,28 @@ ${ownerType==="pmc"
 </tr>`;
 });
 
-html+=`<tr class="total-row">
+html+=`
+<tr class="total-row">
 <td class="left">TOTAL</td><td></td><td></td>
 <td>$${propertyTrue.toFixed(2)}</td>
 <td>$${propertyMgmt.toFixed(2)}</td>
 ${ownerType==="pmc"
  ? `<td>$${propertyOwner.toFixed(2)}</td>`
  : `<td>$${propertyCleaning.toFixed(2)}</td><td>$${propertyDraft.toFixed(2)}</td>`}
-</tr></table>`;
+</tr>
+</table>`;
 });
 
-html+=`<div class="summary">
+html+=`
+<div class="summary">
 <div class="summary-box">TRUE ACCOMMODATION<span>$${totalTrue.toFixed(2)}</span></div>
 <div class="summary-box">PMC COMMISSION<span>$${totalMgmt.toFixed(2)}</span></div>
 <div class="summary-box">TOTAL TAX TO REPORT<span>$${totalTax.toFixed(2)}</span></div>
 ${ownerType==="pmc"
  ? `<div class="summary-box">OWNER PAYOUT<span>$${totalOwner.toFixed(2)}</span></div>`
  : `<div class="summary-box">DRAFT FROM OWNER<span>$${totalDraft.toFixed(2)}</span></div>`}
-</div>`;
+</div>
+`;
 
 document.getElementById("output").innerHTML=html;
 
@@ -313,6 +338,7 @@ document.getElementById("output").innerHTML=html;
 });
 
 }
+
 </script>
 
 </body>

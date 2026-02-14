@@ -147,6 +147,22 @@ font-weight:bold;
 background:#e5e5e5;
 }
 
+.expense-table{
+margin-top:10px;
+}
+
+.expense-add{
+margin-top:8px;
+}
+
+.delete-btn{
+background:red;
+color:white;
+border:none;
+padding:4px 8px;
+cursor:pointer;
+}
+
 @media print{
 .topbar{display:none}
 body{background:white;color:black}
@@ -218,6 +234,12 @@ yearSelect.innerHTML+=`<option value="${y}">${y}</option>`;
 }
 yearSelect.value=now.getFullYear();
 
+/* STORAGE */
+let expenses=JSON.parse(localStorage.getItem("statement_expenses")||"{}");
+function saveExpenses(){
+localStorage.setItem("statement_expenses",JSON.stringify(expenses));
+}
+
 /* HELPERS */
 function num(v){return parseFloat((v||"0").toString().replace(/[$,]/g,""))||0}
 function money(x){return "$"+(Number(x)||0).toFixed(2)}
@@ -229,6 +251,26 @@ p=p.toLowerCase();
 if(p==="manual"||p==="manual_direct") return "Direct";
 if(p==="vrbo_manual") return "VRBO";
 return p.charAt(0).toUpperCase()+p.slice(1);
+}
+
+/* ADD EXPENSE */
+function addExpense(listing){
+if(!expenses[listing]) expenses[listing]=[];
+expenses[listing].push({type:"Maintenance",desc:"",amount:0});
+saveExpenses();
+runStatement();
+}
+
+function updateExpense(listing,index,field,value){
+expenses[listing][index][field]=value;
+saveExpenses();
+runStatement();
+}
+
+function deleteExpense(listing,index){
+expenses[listing].splice(index,1);
+saveExpenses();
+runStatement();
 }
 
 /* MAIN */
@@ -247,7 +289,7 @@ const month=monthSelect.value;
 const year=yearSelect.value;
 const endDay=lastDay(year,month);
 
-let totalGross=0,totalAcc=0,totalClean=0,totalPMC=0,totalOwner=0,totalDraft=0;
+let totalGross=0,totalAcc=0,totalClean=0,totalPMC=0,totalOwner=0,totalDraft=0,totalExpense=0;
 
 /* GROUP */
 const grouped={};
@@ -264,12 +306,15 @@ let tablesHTML="";
 
 Object.keys(grouped).forEach(listing=>{
 
-let pGross=0,pAcc=0,pClean=0,pPMC=0,pOwner=0,pDraft=0;
+if(!expenses[listing]) expenses[listing]=[];
+
+let pGross=0,pAcc=0,pClean=0,pPMC=0,pOwner=0,pDraft=0,pExpense=0;
 
 let table=`
 <div class="property">
 <h3>${listing}</h3>
 <small>${month}/1/${year} - ${month}/${endDay}/${year}</small>
+
 <table>
 <tr>
 <th>Reservation ID</th>
@@ -301,6 +346,7 @@ totalGross+=payout;
 totalAcc+=acc;
 totalClean+=cleaning;
 totalPMC+=pmc;
+
 if(type==="payout") totalOwner+=ownerPay;
 else totalDraft+=draft;
 
@@ -332,12 +378,45 @@ ${type==="payout"
 <div class="property-payout">
 TOTAL PROPERTY PAYOUT: ${money(pGross)}
 </div>
+`;
 
+/* EXPENSE TABLE */
+let expenseRows="";
+expenses[listing].forEach((e,i)=>{
+pExpense+=num(e.amount);
+totalExpense+=num(e.amount);
+
+expenseRows+=`
+<tr>
+<td>
+<select onchange="updateExpense('${listing}',${i},'type',this.value)">
+<option ${e.type==="Maintenance"?"selected":""}>Maintenance</option>
+<option ${e.type==="Repair"?"selected":""}>Repair</option>
+<option ${e.type==="Pool Cleaning"?"selected":""}>Pool Cleaning</option>
+<option ${e.type==="Pest Control"?"selected":""}>Pest Control</option>
+<option ${e.type==="Purchase"?"selected":""}>Purchase</option>
+</select>
+</td>
+<td><input value="${e.desc}" onchange="updateExpense('${listing}',${i},'desc',this.value)"></td>
+<td><input type="number" value="${e.amount}" onchange="updateExpense('${listing}',${i},'amount',this.value)"></td>
+<td><button class="delete-btn" onclick="deleteExpense('${listing}',${i})">X</button></td>
+</tr>
+`;
+});
+
+table+=`
+<div class="expense-table">
+<h4>Expenses</h4>
+<table>
+<tr><th>Type</th><th>Description</th><th>Amount</th><th></th></tr>
+${expenseRows}
+</table>
+<button class="expense-add" onclick="addExpense('${listing}')">Add Expense</button>
+</div>
 </div>
 `;
 
 tablesHTML+=table;
-
 });
 
 /* SUMMARY */
@@ -360,13 +439,18 @@ let summary=`
 </div>
 
 <div class="summary-box">
+<div class="summary-label">EXPENSES</div>
+<div class="summary-value">${money(totalExpense)}</div>
+</div>
+
+<div class="summary-box">
 <div class="summary-label">PMC</div>
 <div class="summary-value">${money(totalPMC)}</div>
 </div>
 
 <div class="summary-box">
 <div class="summary-label">${type==="payout"?"OWNER PAYOUT":"DRAFT FROM OWNER"}</div>
-<div class="summary-value">${type==="payout"?money(totalOwner):money(totalDraft)}</div>
+<div class="summary-value">${type==="payout"?money(totalOwner-totalExpense):money(totalDraft+totalExpense)}</div>
 </div>
 
 </div>

@@ -37,7 +37,7 @@ cursor:pointer;
 }
 
 .content{
-max-width:1000px;
+max-width:980px;
 margin:auto;
 padding:20px;
 }
@@ -168,9 +168,21 @@ font-size:11px;
 <div id="output" class="content"></div>
 
 <script>
+
 const owners={
 "ERAN":{percent:0.12,type:"Draft"},
-"GHO":{percent:0.10,type:"Payout"}
+"GHO":{percent:0.10,type:"Payout"},
+"1463 Basin Trail":{percent:0.12,type:"Payout"},
+"113B-15S Surfside Beach":{percent:0.12,type:"Payout"},
+"113B-13N Surfside Beach":{percent:0.12,type:"Payout"},
+"115C-15N Surfside Beach":{percent:0.12,type:"Payout"},
+"2131 Sanibel Myrtle Beach":{percent:0.15,type:"Payout"},
+"1552 Elizabeth Ln Myrtle Beach":{percent:0.15,type:"Payout"},
+"469C White River RD Myrtle Beach":{percent:0.12,type:"Payout"},
+"4631-301 Wild Iris Drive Myrtle Beach":{percent:0.12,type:"Payout"},
+"4679-204 Wild Iris Drive Myrtle Beach":{percent:0.12,type:"Payout"},
+"508-1/2 33rd Ave North Myrtle Beach":{percent:0.15,type:"Payout"},
+"214-2S 2nd Ave S. North Myrtle Beach":{percent:0.12,type:"Payout"}
 };
 
 const ownerSel=document.getElementById("owner");
@@ -293,7 +305,7 @@ rows+=`
 </tr>`;
 });
 
-/* Add expenses as lines in main table */
+/* Expenses as rows */
 let expTotal=0;
 expenses[listing].forEach((e,i)=>{
 expTotal+=num(e.amount);
@@ -363,7 +375,7 @@ saveExpenses();
 }
 
 function addExpense(listing){
-let type=prompt("Expense Type (Maintenance/Repair/etc):","Maintenance");
+let type=prompt("Expense Type:","Maintenance");
 let desc=prompt("Description:","");
 let amount=prompt("Amount:","0");
 if(!type||!amount) return;

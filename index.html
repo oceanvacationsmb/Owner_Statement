@@ -7,169 +7,38 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
 <style>
-body{
-margin:0;
-font-family:Arial,Helvetica,sans-serif;
-background:#fff;
-color:#000;
-}
-
-.topbar{
-background:#f5f5f5;
-padding:8px;
-display:flex;
-justify-content:center;
-gap:6px;
-flex-wrap:wrap;
-border-bottom:1px solid #ccc;
-}
-
-select,input,button{
-padding:4px;
-font-size:11px;
-}
-
-button{
-background:#000;
-color:#fff;
-border:none;
-cursor:pointer;
-}
-
-.content{
-max-width:900px;
-margin:auto;
-padding:25px 0;
-}
-
-.company{
-font-size:22px;
-font-weight:900;
-}
-
-.company-info{
-font-size:11px;
-line-height:1.4;
-}
-
-.header-row{
-display:flex;
-justify-content:space-between;
-align-items:flex-start;
-margin-bottom:10px;
-}
-
-.statement-dates{
-text-align:right;
-font-weight:bold;
-font-size:12px;
-}
-
-.title{
-text-align:center;
-font-size:26px;
-font-weight:900;
-margin-top:10px;
-}
-
-.owner{
-text-align:center;
-font-size:22px;
-font-weight:900;
-margin-top:6px;
-}
-
-.period{
-text-align:center;
-font-size:12px;
-margin-bottom:20px;
-}
-
-.summary-box{
-border:2px solid #000;
-padding:12px 15px;
-margin:0 auto 30px auto;
-width:900px;
-box-sizing:border-box;
-}
-
-.summary{
-display:flex;
-justify-content:space-between;
-flex-wrap:wrap;
-}
-
-.summary-item{
-flex:1;
-text-align:center;
-min-width:100px;
-}
-
-.summary-label{
-font-size:10px;
-font-weight:700;
-}
-
-.summary-value{
-font-size:16px;
-font-weight:900;
-margin-top:4px;
-}
-
-.property{
-margin-top:25px;
-}
-
-.property-header{
-width:900px;
-margin:0 auto 6px auto;
-font-size:13px;
-font-weight:700;
-}
-
-.property-period{
-font-size:10px;
-font-weight:normal;
-}
-
-table{
-width:900px;
-margin:0 auto;
-border-collapse:collapse;
-font-size:10px;
-}
-
-th,td{
-border:1px solid #000;
-padding:4px 6px;
-text-align:center;
-}
-
-th{
-background:#000;
-color:#fff;
-}
-
-tr:nth-child(even){
-background:#f5f5f5;
-}
-
-.total{
-font-weight:bold;
-background:#e5e5e5;
-}
-
-.property-payout{
-width:900px;
-margin:6px auto 0 auto;
-font-weight:bold;
-font-size:11px;
-text-align:left;
-}
-
-@media print{
-.topbar{display:none}
-}
+body{margin:0;font-family:Arial;background:#fff;color:#000}
+.topbar{background:#f5f5f5;padding:8px;display:flex;justify-content:center;gap:6px;flex-wrap:wrap;border-bottom:1px solid #ccc}
+select,input,button{padding:4px;font-size:11px}
+button{background:#000;color:#fff;border:none;cursor:pointer}
+.content{max-width:900px;margin:auto;padding:20px 0}
+.company{font-size:22px;font-weight:900}
+.company-info{font-size:11px;line-height:1.4}
+.header-row{display:flex;justify-content:space-between;align-items:flex-start}
+.statement-dates{text-align:right;font-weight:bold;font-size:12px}
+.title{text-align:center;font-size:24px;font-weight:900;margin-top:10px}
+.owner{text-align:center;font-size:20px;font-weight:900;margin-top:5px}
+.period{text-align:center;font-size:12px;margin-bottom:15px}
+.summary-box{border:2px solid #000;padding:10px;margin:15px auto;width:900px;box-sizing:border-box}
+.summary{display:flex;justify-content:space-between}
+.summary-item{text-align:center;flex:1}
+.summary-label{font-size:10px;font-weight:bold}
+.summary-value{font-size:14px;font-weight:900;margin-top:3px}
+.property{margin-top:25px}
+.property-header{width:900px;margin:0 auto;font-size:13px;font-weight:bold}
+.property-period{font-size:10px}
+table{width:900px;margin:5px auto;border-collapse:collapse;font-size:10px}
+th,td{border:1px solid #000;padding:4px;text-align:center}
+th{background:#000;color:#fff}
+tr:nth-child(even){background:#f2f2f2}
+.total{font-weight:bold;background:#e5e5e5}
+.property-payout{width:900px;margin:5px auto;font-weight:bold;font-size:11px;text-align:left}
+.expense-section{width:900px;margin:5px auto}
+.expense-table{width:900px;border-collapse:collapse;font-size:10px;margin-top:5px}
+.expense-table th{background:#000;color:#fff}
+.add-expense-row select,
+.add-expense-row input{font-size:10px;padding:2px}
+@media print{.topbar{display:none}}
 </style>
 </head>
 
@@ -192,7 +61,18 @@ text-align:left;
 
 const owners={
 "ERAN MARON":{percent:0.12,type:"draft"},
-"GHO":{percent:0.10,type:"payout"}
+"GHO":{percent:0.10,type:"payout"},
+"1463 Basin Trail":{percent:0.12,type:"payout"},
+"113B-15S Surfside Beach":{percent:0.12,type:"payout"},
+"113B-13N Surfside Beach":{percent:0.12,type:"payout"},
+"115C-15N Surfside Beach":{percent:0.12,type:"payout"},
+"2131 Sanibel Myrtle Beach":{percent:0.15,type:"payout"},
+"1552 Elizabeth Ln Myrtle Beach":{percent:0.15,type:"payout"},
+"469C White River RD Myrtle Beach":{percent:0.12,type:"payout"},
+"4631-301 Wild Iris Drive Myrtle Beach":{percent:0.12,type:"payout"},
+"4679-204 Wild Iris Drive Myrtle Beach":{percent:0.12,type:"payout"},
+"508-1/2 33rd Ave North Myrtle Beach":{percent:0.15,type:"payout"},
+"214-2S 2nd Ave S. North Myrtle Beach":{percent:0.12,type:"payout"}
 };
 
 const ownerSelect=document.getElementById("owner");
@@ -211,7 +91,6 @@ applyOwner();
 const monthSelect=document.getElementById("month");
 const yearSelect=document.getElementById("year");
 const now=new Date();
-
 for(let m=1;m<=12;m++){
 let mm=m.toString().padStart(2,"0");
 let name=new Date(0,m-1).toLocaleString('default',{month:'long'});
@@ -228,14 +107,11 @@ function num(v){return parseFloat((v||"0").toString().replace(/[$,]/g,""))||0}
 function money(x){return "$"+(Number(x)||0).toFixed(2)}
 function stay(i,o){if(!i||!o)return"";let a=i.split("-"),b=o.split("-");return a[1]+"/"+a[2]+" - "+b[1]+"/"+b[2]}
 function lastDay(y,m){return new Date(y,m,0).getDate()}
-
-function getStatementDates(year,month){
-let statement=new Date(year,month,1);
-let payment=new Date(year,month,5);
-return {
-statement:statement.toLocaleDateString(),
-payment:payment.toLocaleDateString()
-};
+function normalizePlatform(p){
+if(!p) return "";
+if(p.toLowerCase().includes("manual")) return "Direct";
+if(p.toLowerCase().includes("vrbo")) return "VRBO";
+return p;
 }
 
 async function runStatement(){
@@ -252,9 +128,8 @@ const type=owners[owner].type;
 const month=monthSelect.value;
 const year=yearSelect.value;
 const endDay=lastDay(year,month);
-const dates=getStatementDates(parseInt(year),parseInt(month));
 
-let totalGross=0,totalAcc=0,totalClean=0,totalPMC=0,totalDraft=0,totalOwner=0;
+let totalGross=0,totalAcc=0,totalClean=0,totalPMC=0,totalOwner=0,totalDraft=0,totalExpense=0;
 
 const grouped={};
 
@@ -275,18 +150,18 @@ let pGross=0,pAcc=0,pClean=0,pPMC=0,pDraft=0,pOwner=0;
 
 tablesHTML+=`
 <div class="property">
-<div class="property-header">
-${listing}
+<div class="property-header">${listing}
 <div class="property-period">${month}/1/${year} - ${month}/${endDay}/${year}</div>
 </div>
 
 <table>
 <tr>
 <th>Reservation</th>
+<th>Platform</th>
 <th>Stay</th>
 <th>Accommodation</th>
 <th>PMC</th>
-${type==="payout"?"<th>Owner</th>":"<th>Cleaning</th><th>Draft</th>"}
+${type==="draft"?"<th>Cleaning</th><th>Draft</th>":"<th>Owner</th>"}
 </tr>
 `;
 
@@ -315,12 +190,13 @@ else totalOwner+=ownerPay;
 tablesHTML+=`
 <tr>
 <td>${r["CONFIRMATION CODE"]}</td>
+<td>${normalizePlatform(r["PLATFORM"])}</td>
 <td>${stay(r["CHECK-IN DATE"],r["CHECK-OUT DATE"])}</td>
 <td>${money(acc)}</td>
 <td>${money(pmc)}</td>
-${type==="payout"
-?`<td>${money(ownerPay)}</td>`
-:`<td>${money(cleaning)}</td><td>${money(draft)}</td>`}
+${type==="draft"
+?`<td>${money(cleaning)}</td><td>${money(draft)}</td>`
+:`<td>${money(ownerPay)}</td>`}
 </tr>`;
 });
 
@@ -328,17 +204,24 @@ tablesHTML+=`
 <tr class="total">
 <td>TOTAL</td>
 <td></td>
+<td></td>
 <td>${money(pAcc)}</td>
 <td>${money(pPMC)}</td>
-${type==="payout"
-?`<td>${money(pOwner)}</td>`
-:`<td>${money(pClean)}</td><td>${money(pDraft)}</td>`}
+${type==="draft"
+?`<td>${money(pClean)}</td><td>${money(pDraft)}</td>`
+:`<td>${money(pOwner)}</td>`}
 </tr>
 </table>
 
-<div class="property-payout">
-TOTAL PROPERTY PAYOUT: ${money(pGross)}
+<div class="property-payout">TOTAL PROPERTY PAYOUT: ${money(pGross)}</div>
+
+<div class="expense-section">
+<button onclick="addExpense('${listing}')">Add Expense</button>
+<table class="expense-table" id="expense-${listing}">
+<tr><th>Type</th><th>Description</th><th>Amount</th><th>Action</th></tr>
+</table>
 </div>
+
 </div>
 `;
 });
@@ -346,19 +229,25 @@ TOTAL PROPERTY PAYOUT: ${money(pGross)}
 const summaryHTML=`
 <div class="summary-box">
 <div class="summary">
-<div class="summary-item"><div class="summary-label">GROSS PAYOUT</div><div class="summary-value">${money(totalGross)}</div></div>
+${type==="draft"
+?`<div class="summary-item"><div class="summary-label">GROSS PAYOUT</div><div class="summary-value">${money(totalGross)}</div></div>`
+:""}
 <div class="summary-item"><div class="summary-label">ACCOMMODATION</div><div class="summary-value">${money(totalAcc)}</div></div>
-<div class="summary-item"><div class="summary-label">CLEANING FEE</div><div class="summary-value">${money(totalClean)}</div></div>
+${type==="draft"
+?`<div class="summary-item"><div class="summary-label">CLEANING FEE</div><div class="summary-value">${money(totalClean)}</div></div>`
+:""}
+<div class="summary-item"><div class="summary-label">EXPENSES</div><div class="summary-value" id="summaryExpense">$0.00</div></div>
 <div class="summary-item"><div class="summary-label">PMC</div><div class="summary-value">${money(totalPMC)}</div></div>
-<div class="summary-item"><div class="summary-label">${type==="draft"?"DRAFT FROM OWNER":"OWNER PAYOUT"}</div>
-<div class="summary-value">${type==="draft"?money(totalDraft):money(totalOwner)}</div></div>
+<div class="summary-item">
+<div class="summary-label">${type==="draft"?"DRAFT FROM OWNER":"OWNER PAYOUT"}</div>
+<div class="summary-value">${type==="draft"?money(totalDraft):money(totalOwner)}</div>
+</div>
 </div>
 </div>
 `;
 
 document.getElementById("output").innerHTML=`
 <div id="statement">
-
 <div class="header-row">
 <div>
 <div class="company">OCEAN VACATIONS</div>
@@ -368,23 +257,35 @@ oceanvacationsmb@gmail.com<br>
 843-222-6516
 </div>
 </div>
-<div class="statement-dates">
-Statement Date: ${dates.statement}<br>
-Payment Date: ${dates.payment}
 </div>
-</div>
-
 <div class="title">RESERVATION REPORT</div>
 <div class="owner">${owner}</div>
 <div class="period">${new Date(year,month-1).toLocaleString('default',{month:'long'})} 1 - ${endDay}, ${year}</div>
-
 ${summaryHTML}
 ${tablesHTML}
-
 </div>
 `;
 
 document.getElementById("pdfBtn").disabled=false;
+}
+
+function addExpense(listing){
+const table=document.getElementById(`expense-${listing}`);
+const row=table.insertRow();
+row.innerHTML=`
+<td>
+<select>
+<option>Maintenance</option>
+<option>Repair</option>
+<option>Pool Cleaning</option>
+<option>Pest Control</option>
+<option>Purchase</option>
+</select>
+</td>
+<td><input type="text"></td>
+<td><input type="number" step="0.01"></td>
+<td><button onclick="this.parentElement.parentElement.remove()">Delete</button></td>
+`;
 }
 
 function downloadPDF(){
@@ -397,6 +298,5 @@ jsPDF:{unit:"mm",format:"a4"}
 }
 
 </script>
-
 </body>
 </html>

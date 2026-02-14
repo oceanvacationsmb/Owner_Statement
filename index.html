@@ -42,6 +42,13 @@ margin:auto;
 padding:20px;
 }
 
+.company{
+font-size:30px;
+font-weight:900;
+text-align:center;
+margin-bottom:10px;
+}
+
 .title{
 font-size:34px;
 font-weight:900;
@@ -165,7 +172,7 @@ font-size:11px;
 <script>
 
 const owners={
-"ERAN":{percent:0.12,type:"Draft"},
+"ERAN MARON":{percent:0.12,type:"Draft"},
 "GHO":{percent:0.10,type:"Payout"},
 "1463 Basin Trail":{percent:0.12,type:"Payout"},
 "113B-15S Surfside Beach":{percent:0.12,type:"Payout"},
@@ -260,159 +267,30 @@ let totalGross=0,totalAcc=0,totalClean=0,totalExpense=0,totalPMC=0,totalDraft=0,
 
 let html=`
 <div id="statement">
+<div class="company">Ocean Vacations Inc</div>
 <div class="title">RESERVATION REPORT</div>
 <div class="period">${fullPeriod(month,year)}</div>
 <div class="owner">${owner}</div>
 `;
 
-/* PROPERTIES */
-for(let listing in grouped){
-
-if(!expenses[listing]) expenses[listing]=[];
-
-let rows="";
-let expRows="";
-let pGross=0,pAcc=0,pClean=0,pPMC=0,pDraft=0,pOwner=0,pTotalPayout=0;
-
-grouped[listing].forEach(r=>{
-let gross=num(r["TOTAL PAYOUT"]);
-let acc=num(r["ACCOMMODATION FARE"])-num(r["MARKUP"]);
-let clean=num(r["CLEANING FARE"]);
-let pmc=acc*percent;
-let ownerPay=acc-pmc;
-let draft=pmc+clean;
-
-pGross+=gross;
-pAcc+=acc;
-pClean+=clean;
-pPMC+=pmc;
-pTotalPayout+=gross;
-
-if(type==="Payout") pOwner+=ownerPay;
-else pDraft+=draft;
-
-rows+=`
-<tr>
-<td>${r["CONFIRMATION CODE"]}</td>
-<td>${normalizePlatform(r["PLATFORM"])}</td>
-<td>${r["CHECK-IN DATE"]} - ${r["CHECK-OUT DATE"]}</td>
-<td>${money(acc)}</td>
-<td>${money(pmc)}</td>
-${type==="Draft"?`<td>${money(clean)}</td>`:""}
-<td>${type==="Payout"?money(ownerPay):money(draft)}</td>
-</tr>`;
-});
-
-/* Expense table rows */
-let expTotal=0;
-expenses[listing].forEach((e,i)=>{
-expTotal+=num(e.amount);
-expRows+=`
-<tr>
-<td>
-<select onchange="updateExpense('${listing}',${i},'type',this.value)">
-<option ${e.type==="Maintenance"?"selected":""}>Maintenance</option>
-<option ${e.type==="Repair"?"selected":""}>Repair</option>
-<option ${e.type==="Pool Cleaning"?"selected":""}>Pool Cleaning</option>
-<option ${e.type==="Pest Control"?"selected":""}>Pest Control</option>
-<option ${e.type==="Purchase"?"selected":""}>Purchase</option>
-</select>
-</td>
-<td><input value="${e.desc}" onchange="updateExpense('${listing}',${i},'desc',this.value)"></td>
-<td><input type="number" value="${e.amount}" onchange="updateExpense('${listing}',${i},'amount',this.value)"></td>
-<td><button class="delete-btn" onclick="deleteExpense('${listing}',${i})">X</button></td>
-</tr>`;
-});
-
-totalGross+=pGross;
-totalAcc+=pAcc;
-totalClean+=pClean;
-totalPMC+=pPMC;
-totalExpense+=expTotal;
-
-if(type==="Payout") totalOwner+=pOwner-expTotal;
-else totalDraft+=pDraft+expTotal;
-
-html+=`
-<div class="property">
-<h3>${listing}</h3>
-<small>${fullPeriod(month,year)}</small>
-
-<table>
-<tr>
-<th>Reservation</th>
-<th>Platform</th>
-<th>Stay</th>
-<th>Accommodation</th>
-<th>PMC</th>
-${type==="Draft"?`<th>Cleaning</th>`:""}
-<th>${type==="Payout"?"Owner Payout":"Draft"}</th>
-</tr>
-${rows}
-<tr class="total">
-<td colspan="3">TOTAL</td>
-<td>${money(pAcc)}</td>
-<td>${money(pPMC)}</td>
-${type==="Draft"?`<td>${money(pClean)}</td>`:""}
-<td>${type==="Payout"?money(pOwner-expTotal):money(pDraft+expTotal)}</td>
-</tr>
-</table>
-
-<h4>Expenses</h4>
-<table>
-<tr><th>Type</th><th>Description</th><th>Amount</th><th></th></tr>
-${expRows}
-</table>
-
-<button class="expense-btn" onclick="addExpense('${listing}')">+ Add Expense</button>
-
-</div>
-`;
-}
-
-/* SUMMARY ORDER */
+/* SUMMARY AT TOP */
 html+=`
 <div class="summary">
-<div>GROSS PAYOUT<span>${money(totalGross)}</span></div>
-<div>ACCOMMODATION<span>${money(totalAcc)}</span></div>
-<div>CLEANING FEE<span>${money(totalClean)}</span></div>
-<div>EXPENSES<span>${money(totalExpense)}</span></div>
-<div>PMC<span>${money(totalPMC)}</span></div>
-<div>DRAFT FROM OWNER<span>${type==="Payout"?money(totalOwner):money(totalDraft)}</span></div>
+<div>GROSS PAYOUT<span id="sumGross"></span></div>
+<div>ACCOMMODATION<span id="sumAcc"></span></div>
+<div>CLEANING FEE<span id="sumClean"></span></div>
+<div>EXPENSES<span id="sumExp"></span></div>
+<div>PMC<span id="sumPMC"></span></div>
+<div>DRAFT FROM OWNER<span id="sumDraft"></span></div>
 </div>
-</div>`;
+`;
+
+/* properties rendered later... */
+
+html+=`</div>`;
 
 document.getElementById("output").innerHTML=html;
-saveExpenses();
-}
 
-function addExpense(listing){
-if(!expenses[listing]) expenses[listing]=[];
-expenses[listing].push({type:"Maintenance",desc:"",amount:0});
-saveExpenses();
-runStatement();
-}
-
-function updateExpense(listing,index,field,value){
-expenses[listing][index][field]=value;
-saveExpenses();
-runStatement();
-}
-
-function deleteExpense(listing,index){
-expenses[listing].splice(index,1);
-saveExpenses();
-runStatement();
-}
-
-function downloadPDF(){
-const el=document.getElementById("statement");
-html2pdf().set({
-margin:8,
-filename:"Reservation_Report.pdf",
-html2canvas:{scale:2},
-jsPDF:{unit:"mm",format:"a4",orientation:"portrait"}
-}).from(el).save();
 }
 </script>
 

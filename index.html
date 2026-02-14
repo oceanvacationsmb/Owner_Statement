@@ -51,21 +51,21 @@ flex-wrap:wrap
 
 .summary-box span{
 display:block;
-font-size:28px;
+font-size:26px;
 margin-top:6px
 }
 
 .property-section{text-align:left;margin-top:34px;page-break-inside:avoid}
-.property-title{font-size:20px;margin-bottom:6px;color:#e5e7eb}
-.property-period{font-size:13px;color:#9ca3af;margin-bottom:10px}
+.property-title{font-size:20px;margin-bottom:4px}
+.property-period{font-size:13px;margin-bottom:10px;color:#9ca3af}
 
-table{width:100%;border-collapse:collapse;background:#111827}
-th,td{padding:10px;border:1px solid #1f2937}
-th{background:#1f2937;text-align:center}
+table{width:100%;border-collapse:collapse;background:#111827;margin-bottom:10px}
+th,td{padding:8px;border:1px solid #1f2937}
+th{text-align:center}
 td{text-align:right}
 td.left{text-align:left}
 
-.total-row{background:#1f2937;font-weight:bold}
+.total-row{font-weight:bold;background:#1f2937}
 
 .add-expense{
 margin-top:8px;
@@ -76,16 +76,14 @@ border:none;
 cursor:pointer;
 }
 
-/* PDF / PRINT — WHITE ONLY */
+/* PDF white only */
 @media print{
 body{background:white;color:black}
 .topbar{display:none}
-
 #statement{color:black;background:white}
 
 table{background:white}
-th{background:white;color:black;border:1px solid #000}
-td{background:white;color:black;border:1px solid #000}
+th,td{background:white;color:black;border:1px solid #000}
 tr:nth-child(even) td{background:#f5f5f5}
 
 .property-section{page-break-before:always}
@@ -142,11 +140,10 @@ const yearSelect=document.getElementById("year");
 const now=new Date();
 
 for(let m=1;m<=12;m++){
-let mm=m.toString().padStart(2,"0");
 let name=new Date(0,m-1).toLocaleString('default',{month:'long'});
-monthSelect.innerHTML+=`<option value="${mm}">${name}</option>`;
+monthSelect.innerHTML+=`<option value="${m}">${name}</option>`;
 }
-monthSelect.value=(now.getMonth()+1).toString().padStart(2,"0");
+monthSelect.value=now.getMonth()+1;
 
 for(let y=now.getFullYear()-3;y<=now.getFullYear()+3;y++){
 yearSelect.innerHTML+=`<option value="${y}">${y}</option>`;
@@ -169,31 +166,6 @@ return p.charAt(0).toUpperCase()+p.slice(1);
 /* EXPENSE STORAGE */
 const propertyExpenses={};
 
-function addExpenseRow(tableId,listing){
-if(!propertyExpenses[listing]) propertyExpenses[listing]=0;
-
-const table=document.getElementById(tableId);
-const row=table.insertRow(table.rows.length-1);
-
-row.innerHTML=`
-<td class="left">EXPENSE</td>
-<td colspan="2">
-<select>
-<option>Maintenance</option>
-<option>Repair</option>
-<option>Pool Cleaning</option>
-<option>Pest Control</option>
-<option>Purchase</option>
-</select>
-</td>
-<td colspan="2"><input type="text" placeholder="Description"></td>
-<td>
-<input type="number" step="0.01" value="0"
-onchange="propertyExpenses['${listing}']=num(this.value);runStatement();">
-</td>
-`;
-}
-
 /* MAIN */
 async function runStatement(){
 
@@ -203,8 +175,8 @@ if(!file){alert("Choose CSV");return;}
 const text=await file.text();
 const rows=Papa.parse(text,{header:true,skipEmptyLines:true}).data;
 
-const month=monthSelect.value;
-const year=yearSelect.value;
+const month=parseInt(monthSelect.value);
+const year=parseInt(yearSelect.value);
 const owner=ownerSelect.value;
 const percent=owners[owner].percent;
 const payType=owners[owner].type;
@@ -214,20 +186,19 @@ let totalAcc=0,totalMgmt=0,totalOwner=0,totalDraft=0,totalCleaning=0,totalExpens
 let tablesHTML="";
 let index=0;
 
-/* GROUP BY LISTING */
 const grouped={};
 rows.forEach(r=>{
 if(!r["CHECK-IN DATE"])return;
-if(r["CHECK-IN DATE"].substring(5,7)!==month)return;
-if(r["CHECK-IN DATE"].substring(0,4)!==String(year))return;
+let m=parseInt(r["CHECK-IN DATE"].split("-")[1]);
+let y=parseInt(r["CHECK-IN DATE"].split("-")[0]);
+if(m!==month||y!==year)return;
 const listing=r["LISTING'S NICKNAME"]||"Unknown";
 if(!grouped[listing])grouped[listing]=[];
 grouped[listing].push(r);
 });
 
-/* BUILD TABLES */
 Object.keys(grouped).forEach(listing=>{
-let pAcc=0,pMgmt=0,pOwner=0,pDraft=0,pCleaning=0;
+let pAcc=0,pMgmt=0,pOwner=0,pDraft=0,pCleaning=0,pTotalPayout=0;
 const tableId="table"+index++;
 
 let table=`
@@ -248,11 +219,12 @@ ${payType==="payout"?"<th>Owner Payout</th>":"<th>Cleaning</th><th>Draft</th>"}
 grouped[listing].forEach(r=>{
 let acc=num(r["ACCOMMODATION FARE"])-num(r["MARKUP"]);
 let cleaning=num(r["CLEANING FARE"]);
+let payout=num(r["TOTAL PAYOUT"]);
 let mgmt=acc*percent;
 let ownerPay=acc-mgmt;
 let draft=mgmt+cleaning;
 
-pAcc+=acc;pMgmt+=mgmt;pOwner+=ownerPay;pDraft+=draft;pCleaning+=cleaning;
+pAcc+=acc;pMgmt+=mgmt;pOwner+=ownerPay;pDraft+=draft;pCleaning+=cleaning;pTotalPayout+=payout;
 totalAcc+=acc;totalMgmt+=mgmt;totalCleaning+=cleaning;
 if(payType==="payout") totalOwner+=ownerPay; else totalDraft+=draft;
 
@@ -267,21 +239,31 @@ ${payType==="payout"?`<td>${money(ownerPay)}</td>`:`<td>${money(cleaning)}</td><
 </tr>`;
 });
 
-const expenses=propertyExpenses[listing]||0;
-totalExpenses+=expenses;
+/* Total Payout only for Draft owners */
+if(payType==="draft"){
+table+=`
+<tr>
+<td colspan="5" class="left"><b>Total Payout</b></td>
+<td colspan="2">${money(pTotalPayout)}</td>
+</tr>`;
+}
+
+/* Expense Table */
+let expTotal=propertyExpenses[listing]||0;
+totalExpenses+=expTotal;
 
 table+=`
-<tr class="total-row">
-<td class="left">TOTAL</td><td></td><td></td>
-<td>${money(pAcc)}</td>
-<td>${money(pMgmt)}</td>
-${payType==="payout"
-?`<td>${money(pOwner-expenses)}</td>`
-:`<td>${money(pCleaning)}</td><td>${money(pDraft+expenses)}</td>`}
+</table>
+
+<table>
+<tr><th colspan="4">Expenses</th></tr>
+<tr>
+<td class="left">Total Expenses</td>
+<td colspan="3">${money(expTotal)}</td>
 </tr>
 </table>
 
-<button class="add-expense" onclick="addExpenseRow('${tableId}','${listing}')">+ Add Expense</button>
+<button class="add-expense" onclick="addExpense('${listing}')">+ Add Expense</button>
 </div>`;
 
 tablesHTML+=table;
@@ -292,14 +274,13 @@ let summary=`
 <div class="summary">
 <div class="summary-box">ACCOMMODATION<span>${money(totalAcc)}</span></div>
 <div class="summary-box">PMC COMMISSION<span>${money(totalMgmt)}</span></div>
-<div class="summary-box">CLEANING FEE<span>${money(totalCleaning)}</span></div>
+${payType==="draft"?`<div class="summary-box">CLEANING FEE<span>${money(totalCleaning)}</span></div>`:""}
 <div class="summary-box">EXPENSES<span>${money(totalExpenses)}</span></div>
 ${payType==="payout"
 ?`<div class="summary-box">OWNER PAYOUT<span>${money(totalOwner-totalExpenses)}</span></div>`
 :`<div class="summary-box">DRAFT FROM OWNER<span>${money(totalDraft+totalExpenses)}</span></div>`}
 </div>`;
 
-/* RENDER */
 document.getElementById("output").innerHTML=`
 <div id="statement">
 <div class="title">RESERVATION STATEMENT</div>
@@ -312,7 +293,13 @@ ${tablesHTML}
 document.getElementById("pdfBtn").disabled=false;
 }
 
-/* PDF */
+function addExpense(listing){
+let val=prompt("Enter Expense Amount:");
+if(!val) return;
+propertyExpenses[listing]=num(val);
+runStatement();
+}
+
 function downloadPDF(){
 const el=document.getElementById("statement");
 html2pdf().set({

@@ -73,7 +73,6 @@ justify-content:center;
 gap:40px;
 margin:20px 0;
 flex-wrap:wrap;
-align-items:flex-start;
 }
 
 .summary div{
@@ -282,6 +281,23 @@ let html=`
 <div class="meta">Rate: ${percent*100}% | Type: ${type}</div>
 `;
 
+/* SUMMARY MOVED TO TOP */
+html+=`<div class="summary">`;
+
+html+=`
+<div class="highlight">
+${type==="Payout"?"Owner Payout":"Draft From Owner"}
+<span id="mainTotal"></span>
+</div>
+
+<div>Accommodation<span id="sumAcc"></span></div>
+<div>PMC<span id="sumPMC"></span></div>
+${type==="Draft"?`<div>Cleaning Fee<span id="sumClean"></span></div>`:""}
+<div>Expenses<span id="sumExp"></span></div>
+
+</div>`;
+
+/* PROPERTIES */
 for(let listing in grouped){
 
 if(!expenses[listing]) expenses[listing]=[];
@@ -312,18 +328,21 @@ rows+=`
 <td>${r["CHECK-IN DATE"]} - ${r["CHECK-OUT DATE"]}</td>
 <td>${money(acc)}</td>
 <td>${money(pmc)}</td>
+${type==="Draft"?`<td>${money(clean)}</td>`:""}
 <td>${type==="Payout"?money(ownerPay):money(draft)}</td>
 </tr>`;
 });
 
 let expTotal=0;
+let expRows="";
+
 expenses[listing].forEach((e,i)=>{
 expTotal+=num(e.amount);
-rows+=`
+expRows+=`
 <tr>
-<td colspan="2">EXPENSE - ${e.type}</td>
+<td>${e.type}</td>
 <td>${e.desc}</td>
-<td colspan="2">${money(e.amount)}</td>
+<td>${money(e.amount)}</td>
 <td><button class="delete-btn" onclick="deleteExpense('${listing}',${i})">X</button></td>
 </tr>`;
 });
@@ -348,6 +367,7 @@ html+=`
 <th>Stay</th>
 <th>Accommodation</th>
 <th>PMC</th>
+${type==="Draft"?`<th>Cleaning</th>`:""}
 <th>${type==="Payout"?"Owner Payout":"Draft"}</th>
 </tr>
 ${rows}
@@ -355,13 +375,20 @@ ${rows}
 <td colspan="3">TOTAL</td>
 <td>${money(pAcc)}</td>
 <td>${money(pPMC)}</td>
+${type==="Draft"?`<td>${money(pClean)}</td>`:""}
 <td>${type==="Payout"?money(pOwner-expTotal):money(pDraft+expTotal)}</td>
 </tr>
 ${type==="Draft"?`
 <tr>
-<td colspan="5">Total Payout</td>
+<td colspan="${type==="Draft"?6:5}">Total Payout</td>
 <td>${money(pTotalPayout)}</td>
 </tr>`:""}
+</table>
+
+<h4>Expenses</h4>
+<table>
+<tr><th>Type</th><th>Description</th><th>Amount</th><th></th></tr>
+${expRows}
 </table>
 
 <button class="expense-btn" onclick="addExpense('${listing}')">+ Add Expense</button>
@@ -370,20 +397,17 @@ ${type==="Draft"?`
 `;
 }
 
-html+=`
-<div class="summary">
-<div class="highlight">
-${type==="Payout"?"Owner Payout":"Draft From Owner"}
-<span>${type==="Payout"?money(totalOwner):money(totalDraft)}</span>
-</div>
-<div>Accommodation<span>${money(totalAcc)}</span></div>
-<div>PMC<span>${money(totalPMC)}</span></div>
-${type==="Draft"?`<div>Cleaning Fee<span>${money(totalClean)}</span></div>`:""}
-<div>Expenses<span>${money(totalExpense)}</span></div>
-</div>
-</div>`;
+html+=`</div>`;
 
 document.getElementById("output").innerHTML=html;
+
+/* Fill summary values */
+document.getElementById("sumAcc").innerText=money(totalAcc);
+document.getElementById("sumPMC").innerText=money(totalPMC);
+if(type==="Draft") document.getElementById("sumClean").innerText=money(totalClean);
+document.getElementById("sumExp").innerText=money(totalExpense);
+document.getElementById("mainTotal").innerText=type==="Payout"?money(totalOwner):money(totalDraft);
+
 saveExpenses();
 }
 

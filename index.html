@@ -9,13 +9,12 @@ h1 { text-align:center; font-size:40px; letter-spacing:2px; }
 .owner { text-align:center; font-size:32px; color:#facc15; margin-top:10px; }
 .period { text-align:center; margin-bottom:40px; color:#9ca3af; }
 input,select { padding:8px; margin:5px; }
-button { padding:10px 20px; background:#2563eb; border:none; color:white; }
+button { padding:10px 20px; background:#2563eb; border:none; color:white; cursor:pointer; }
 .kpi { display:flex; justify-content:space-between; margin-top:30px; }
 .kpi div { text-align:center; flex:1; }
-.kpi span { display:block; font-size:28px; margin-top:8px; }
+.kpi span { display:block; font-size:26px; margin-top:6px; }
 .section { margin-top:40px; }
 .property-title { font-size:22px; margin-top:30px; }
-.address { color:#9ca3af; margin-bottom:10px; }
 table { width:100%; border-collapse:collapse; margin-top:10px; background:#111827; }
 th,td { padding:8px; border:1px solid #1f2937; text-align:right; }
 th { background:#1f2937; }
@@ -31,11 +30,6 @@ hr { border:1px solid #1f2937; margin-top:40px; }
 <label>Owner Name:</label>
 <input type="text" id="ownerName" value="ERAN"><br>
 
-<label>Period Start:</label>
-<input type="date" id="startDate">
-<label>End:</label>
-<input type="date" id="endDate"><br>
-
 <label>Management %</label>
 <input type="number" id="percent" value="12">
 
@@ -46,127 +40,125 @@ hr { border:1px solid #1f2937; margin-top:40px; }
 
 <br><br>
 <input type="file" id="csvFile" accept=".csv">
-<button onclick="run()">Generate Statement</button>
+<button onclick="generate()">Create Statement</button>
 
-<div id="statement"></div>
+<div id="output"></div>
 
 <script>
 
-function n(v){ return parseFloat((v||"0").toString().replace(/[$,]/g,''))||0; }
-
-function stay(i,o){
- if(!i||!o) return "";
- let a=i.split("-"), b=o.split("-");
- return a[1]+"/"+a[2]+" - "+b[1]+"/"+b[2];
+function num(v){
+ return parseFloat((v||"0").toString().replace(/[$,]/g,''))||0;
 }
 
-function run(){
+function stay(inDate,outDate){
+ if(!inDate || !outDate) return "";
+ let i=inDate.split("-");
+ let o=outDate.split("-");
+ if(i.length===3 && o.length===3){
+   return i[1]+"/"+i[2]+" - "+o[1]+"/"+o[2];
+ }
+ return "";
+}
+
+function generate(){
 
 let file=document.getElementById("csvFile").files[0];
+if(!file){ alert("Upload CSV first"); return; }
+
 let percent=parseFloat(document.getElementById("percent").value)/100;
 let ownerType=document.getElementById("ownerType").value;
 let owner=document.getElementById("ownerName").value;
-let start=document.getElementById("startDate").value;
-let end=document.getElementById("endDate").value;
-
-if(!file){ alert("Upload CSV"); return; }
 
 Papa.parse(file,{
 header:true,
 skipEmptyLines:true,
-complete:function(res){
+complete:function(result){
 
-let data=res.data;
+let rows=result.data;
 let grouped={};
 
-let gross=0, cleaningTotal=0, mgmtTotal=0, expenseTotal=0, netTotal=0, draftTotal=0;
+let gross=0;
+let cleaningTotal=0;
+let mgmtTotal=0;
+let netTotal=0;
 
-data.forEach(r=>{
+rows.forEach(function(r){
 
-if(n(r["CANCELED TOTAL PAYOUT"])!==0) return;
+if(num(r["CANCELED TOTAL PAYOUT"])!==0) return;
 
-let listing=r["LISTING'S NICKNAME"]||"Unknown";
+let listing=r["LISTING'S NICKNAME"] || "Unknown";
+
 if(!grouped[listing]) grouped[listing]=[];
-
 grouped[listing].push(r);
 
 });
 
-let html="";
-html+="<div class='owner'>"+owner+"</div>";
-html+="<div class='period'>"+start+" TO "+end+"</div>";
+Object.keys(grouped).forEach(function(listing){
 
-let kpiHTML="<div class='kpi'>";
+grouped[listing].forEach(function(r){
 
-Object.keys(grouped).forEach(listing=>{
-
-grouped[listing].forEach(r=>{
-
-let payout=n(r["TOTAL PAYOUT"]);
-let cleaning=n(r["CLEANING FARE"]);
-let acc=n(r["ACCOMMODATION FARE"]);
-let adj=n(r["ACCOMMODATION FARE ADJUSTMENT"]);
-let markup=n(r["MARKUP"]);
-let expense=0; // add later if needed
+let payout=num(r["TOTAL PAYOUT"]);
+let cleaning=num(r["CLEANING FARE"]);
+let acc=num(r["ACCOMMODATION FARE"]);
+let adj=num(r["ACCOMMODATION FARE ADJUSTMENT"]);
+let markup=num(r["MARKUP"]);
 
 let trueAcc=(acc+adj)-markup;
 let mgmt=trueAcc*percent;
-let net=payout-mgmt-cleaning-expense;
+let net=payout-mgmt-cleaning;
 
 gross+=payout;
 cleaningTotal+=cleaning;
 mgmtTotal+=mgmt;
-expenseTotal+=expense;
 netTotal+=net;
 
 });
 
 });
 
+let draftAmount=0;
 if(ownerType==="direct"){
- draftTotal=mgmtTotal+cleaningTotal;
+ draftAmount=mgmtTotal+cleaningTotal;
 }else{
- draftTotal=netTotal;
+ draftAmount=netTotal;
 }
 
-kpiHTML+="<div>GROSS PAYOUT<span>$"+gross.toFixed(2)+"</span></div>";
-kpiHTML+="<div>TOTAL CLEANING<span>$"+cleaningTotal.toFixed(2)+"</span></div>";
-kpiHTML+="<div>PMC COMM ("+(percent*100).toFixed(0)+"%)<span>$"+mgmtTotal.toFixed(2)+"</span></div>";
-kpiHTML+="<div>EXPENSED<span>$"+expenseTotal.toFixed(2)+"</span></div>";
-kpiHTML+="<div>NET REVENUE<span>$"+netTotal.toFixed(2)+"</span></div>";
-kpiHTML+="<div>"+(ownerType==="direct"?"DRAFT FROM OWNER":"PAY OWNER")+"<span>$"+draftTotal.toFixed(2)+"</span></div>";
-kpiHTML+="</div>";
-
-html+=kpiHTML;
+let html="";
+html+="<div class='owner'>"+owner+"</div>";
+html+="<div class='kpi'>";
+html+="<div>GROSS PAYOUT<span>$"+gross.toFixed(2)+"</span></div>";
+html+="<div>TOTAL CLEANING<span>$"+cleaningTotal.toFixed(2)+"</span></div>";
+html+="<div>PMC COMM ("+(percent*100).toFixed(0)+"%)<span>$"+mgmtTotal.toFixed(2)+"</span></div>";
+html+="<div>NET REVENUE<span>$"+netTotal.toFixed(2)+"</span></div>";
+html+="<div>"+(ownerType==="direct"?"DRAFT FROM OWNER":"PAY OWNER")+"<span>$"+draftAmount.toFixed(2)+"</span></div>";
+html+="</div>";
 html+="<hr>";
 
-Object.keys(grouped).forEach(listing=>{
+Object.keys(grouped).forEach(function(listing){
 
 html+="<div class='property-title'>🏠 "+listing+"</div>";
-html+="<div class='address'></div>";
 
-html+="<table><tr>";
+html+="<table>";
+html+="<tr>";
 html+="<th>ID</th>";
 html+="<th>STAY</th>";
 html+="<th>GROSS PAYOUT</th>";
 html+="<th>CLEANING</th>";
 html+="<th>PMC COMM</th>";
-html+="<th>EXPENSED</th>";
 html+="<th>NET REVENUE</th>";
 html+="</tr>";
 
-grouped[listing].forEach(r=>{
+grouped[listing].forEach(function(r){
 
-let payout=n(r["TOTAL PAYOUT"]);
-let cleaning=n(r["CLEANING FARE"]);
-let acc=n(r["ACCOMMODATION FARE"]);
-let adj=n(r["ACCOMMODATION FARE ADJUSTMENT"]);
-let markup=n(r["MARKUP"]);
-let expense=0;
+let payout=num(r["TOTAL PAYOUT"]);
+let cleaning=num(r["CLEANING FARE"]);
+let acc=num(r["ACCOMMODATION FARE"]);
+let adj=num(r["ACCOMMODATION FARE ADJUSTMENT"]);
+let markup=num(r["MARKUP"]);
 
 let trueAcc=(acc+adj)-markup;
 let mgmt=trueAcc*percent;
-let net=payout-mgmt-cleaning-expense;
+let net=payout-mgmt-cleaning;
 
 html+="<tr>";
 html+="<td class='left'>"+(r["CONFIRMATION CODE"]||"")+"</td>";
@@ -174,7 +166,6 @@ html+="<td>"+stay(r["CHECK-IN DATE"],r["CHECK-OUT DATE"])+"</td>";
 html+="<td>$"+payout.toFixed(2)+"</td>";
 html+="<td>$"+cleaning.toFixed(2)+"</td>";
 html+="<td>$"+mgmt.toFixed(2)+"</td>";
-html+="<td>$"+expense.toFixed(2)+"</td>";
 html+="<td>$"+net.toFixed(2)+"</td>";
 html+="</tr>";
 
@@ -184,7 +175,7 @@ html+="</table>";
 
 });
 
-document.getElementById("statement").innerHTML=html;
+document.getElementById("output").innerHTML=html;
 
 }
 });

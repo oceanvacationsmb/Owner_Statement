@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>PMC Owner Report</title>
+<title>Owner Statement Calculator</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <style>
 body { font-family: Arial; padding:40px; background:#f2f4f7; }
@@ -67,14 +67,10 @@ let d=res.data;
 let totalAcc=0,totalMarkup=0,totalTrue=0,totalCleaning=0,totalMgmt=0,totalPayout=0;
 let totalCity=0,totalState=0,totalCounty=0,totalOcc=0;
 
-let showStay=false,showCity=false,showState=false,showCounty=false,showOcc=false;
+let showStay=false;
 
 d.forEach(r=>{
  if(r["CHECK-IN DATE"]||r["CHECK-OUT DATE"]) showStay=true;
- if(n(r["CITY TAX"])>0) showCity=true;
- if(n(r["STATE TAX"])>0) showState=true;
- if(n(r["COUNTY TAX"])>0) showCounty=true;
- if(n(r["OCCUPANCY TAX"])>0) showOcc=true;
 });
 
 let html="<table><thead><tr>";
@@ -86,10 +82,10 @@ html+="<th>Accommodation</th>";
 html+="<th>Markup</th>";
 html+="<th>True Accommodation</th>";
 html+="<th>Cleaning</th>";
-if(showCity) html+="<th>City Tax</th>";
-if(showState) html+="<th>State Tax</th>";
-if(showCounty) html+="<th>County Tax</th>";
-if(showOcc) html+="<th>Occupancy Tax</th>";
+html+="<th>City Tax</th>";
+html+="<th>State Tax</th>";
+html+="<th>County Tax</th>";
+html+="<th>Occupancy Tax</th>";
 html+="</tr></thead><tbody>";
 
 d.forEach(r=>{
@@ -129,10 +125,10 @@ html+="<td>$"+acc.toFixed(2)+"</td>";
 html+="<td>$"+markup.toFixed(2)+"</td>";
 html+="<td>$"+trueAcc.toFixed(2)+"</td>";
 html+="<td>$"+cleaning.toFixed(2)+"</td>";
-if(showCity) html+="<td>$"+city.toFixed(2)+"</td>";
-if(showState) html+="<td>$"+state.toFixed(2)+"</td>";
-if(showCounty) html+="<td>$"+county.toFixed(2)+"</td>";
-if(showOcc) html+="<td>$"+occ.toFixed(2)+"</td>";
+html+="<td>$"+city.toFixed(2)+"</td>";
+html+="<td>$"+state.toFixed(2)+"</td>";
+html+="<td>$"+county.toFixed(2)+"</td>";
+html+="<td>$"+occ.toFixed(2)+"</td>";
 html+="</tr>";
 
 });
@@ -143,13 +139,15 @@ html+="<td>$"+totalAcc.toFixed(2)+"</td>";
 html+="<td>$"+totalMarkup.toFixed(2)+"</td>";
 html+="<td>$"+totalTrue.toFixed(2)+"</td>";
 html+="<td>$"+totalCleaning.toFixed(2)+"</td>";
-if(showCity) html+="<td>$"+totalCity.toFixed(2)+"</td>";
-if(showState) html+="<td>$"+totalState.toFixed(2)+"</td>";
-if(showCounty) html+="<td>$"+totalCounty.toFixed(2)+"</td>";
-if(showOcc) html+="<td>$"+totalOcc.toFixed(2)+"</td>";
+html+="<td>$"+totalCity.toFixed(2)+"</td>";
+html+="<td>$"+totalState.toFixed(2)+"</td>";
+html+="<td>$"+totalCounty.toFixed(2)+"</td>";
+html+="<td>$"+totalOcc.toFixed(2)+"</td>";
 html+="</tr></tfoot></table>";
 
 document.getElementById("table").innerHTML=html;
+
+let totalTax=totalCity+totalState+totalCounty+totalOcc;
 
 let amountOwner=0;
 if(ownerType==="pmc"){
@@ -165,10 +163,7 @@ document.getElementById("summary").innerHTML=
 
 document.getElementById("taxes").innerHTML=
 "<h3>Taxes</h3>"+
-(showCity?"City Tax: $"+totalCity.toFixed(2)+"<br>":"")+
-(showState?"State Tax: $"+totalState.toFixed(2)+"<br>":"")+
-(showCounty?"County Tax: $"+totalCounty.toFixed(2)+"<br>":"")+
-(showOcc?"Occupancy Tax: $"+totalOcc.toFixed(2):"");
+"Total Tax To Report: $"+totalTax.toFixed(2);
 
 document.getElementById("pmc").innerHTML=
 "<h3>PMC Transfer</h3>"+

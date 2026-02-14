@@ -42,17 +42,6 @@ margin:auto;
 padding:25px 10px;
 }
 
-.header-row{
-display:flex;
-justify-content:space-between;
-align-items:flex-start;
-margin-bottom:10px;
-}
-
-.company-block{
-line-height:1.4;
-}
-
 .company{
 font-size:22px;
 font-weight:900;
@@ -61,12 +50,16 @@ letter-spacing:1px;
 
 .company-info{
 font-size:11px;
-margin-top:4px;
+line-height:1.4;
+}
+
+.header-block{
+margin-bottom:10px;
 }
 
 .statement-info{
-text-align:right;
 font-size:11px;
+margin-top:6px;
 }
 
 .title{
@@ -90,12 +83,17 @@ margin-top:4px;
 margin-bottom:18px;
 }
 
+.summary-box-container{
+border:2px solid #000;
+padding:15px;
+margin-bottom:30px;
+}
+
 .summary{
 display:flex;
 justify-content:space-between;
 flex-wrap:wrap;
 gap:10px;
-margin-bottom:25px;
 }
 
 .summary-box{
@@ -116,7 +114,7 @@ margin-top:4px;
 }
 
 .property{
-margin-top:20px;
+margin-top:25px;
 }
 
 .property h3{
@@ -131,10 +129,10 @@ font-size:10px;
 }
 
 .property-payout{
-margin-top:5px;
+margin-top:6px;
 font-weight:900;
-text-align:right;
 font-size:11px;
+text-align:left;
 }
 
 table{
@@ -167,6 +165,23 @@ font-weight:bold;
 background:#e5e5e5;
 }
 
+.expense-section{
+margin-top:10px;
+}
+
+.expense-section table{
+min-width:500px;
+}
+
+.delete-btn{
+background:red;
+color:white;
+border:none;
+padding:2px 6px;
+cursor:pointer;
+font-size:10px;
+}
+
 @media print{
 .topbar{display:none}
 body{background:white;color:black}
@@ -195,17 +210,7 @@ body{background:white;color:black}
 const owners={
 "ERAN MARON":{percent:0.12,type:"draft"},
 "GHO":{percent:0.10,type:"payout"},
-"1463 Basin Trail":{percent:0.12,type:"payout"},
-"113B-15S Surfside Beach":{percent:0.12,type:"payout"},
-"113B-13N Surfside Beach":{percent:0.12,type:"payout"},
-"115C-15N Surfside Beach":{percent:0.12,type:"payout"},
-"2131 Sanibel Myrtle Beach":{percent:0.15,type:"payout"},
-"1552 Elizabeth Ln Myrtle Beach":{percent:0.15,type:"payout"},
-"469C White River RD Myrtle Beach":{percent:0.12,type:"payout"},
-"4631-301 Wild Iris Drive Myrtle Beach":{percent:0.12,type:"payout"},
-"4679-204 Wild Iris Drive Myrtle Beach":{percent:0.12,type:"payout"},
-"508-1/2 33rd Ave North Myrtle Beach":{percent:0.15,type:"payout"},
-"214-2S 2nd Ave S. North Myrtle Beach":{percent:0.12,type:"payout"}
+"1463 Basin Trail":{percent:0.12,type:"payout"}
 };
 
 const ownerSelect=document.getElementById("owner");
@@ -221,7 +226,7 @@ document.getElementById("payType").innerHTML=`<option>${owners[o].type.toUpperCa
 ownerSelect.onchange=applyOwner;
 applyOwner();
 
-/* MONTH YEAR */
+/* MONTH/YEAR */
 const monthSelect=document.getElementById("month");
 const yearSelect=document.getElementById("year");
 const now=new Date();
@@ -238,24 +243,34 @@ yearSelect.innerHTML+=`<option value="${y}">${y}</option>`;
 }
 yearSelect.value=now.getFullYear();
 
+/* EXPENSE STORAGE */
+let expenses={};
+
+function addExpense(listing){
+if(!expenses[listing]) expenses[listing]=[];
+expenses[listing].push({type:"Maintenance",desc:"",amount:0});
+runStatement();
+}
+
+function updateExpense(listing,index,field,value){
+expenses[listing][index][field]=value;
+runStatement();
+}
+
+function deleteExpense(listing,index){
+expenses[listing].splice(index,1);
+runStatement();
+}
+
 /* HELPERS */
 function num(v){return parseFloat((v||"0").toString().replace(/[$,]/g,""))||0}
 function money(x){return "$"+(Number(x)||0).toFixed(2)}
 function stay(i,o){if(!i||!o)return"";let a=i.split("-"),b=o.split("-");return a[1]+"/"+a[2]+" - "+b[1]+"/"+b[2]}
 function lastDay(y,m){return new Date(y,m,0).getDate()}
-function normalizePlatform(p){
-if(!p) return "";
-p=p.toLowerCase();
-if(p==="manual"||p==="manual_direct") return "Direct";
-if(p==="vrbo_manual") return "VRBO";
-return p.charAt(0).toUpperCase()+p.slice(1);
-}
 
 function getStatementDates(year,month){
-let reportMonth=parseInt(month)-1;
-let reportYear=parseInt(year);
-let nextMonth=new Date(reportYear,reportMonth+1,1);
-let payDate=new Date(reportYear,reportMonth+1,5);
+let nextMonth=new Date(year,month,1);
+let payDate=new Date(year,month,5);
 return {
 statement: nextMonth.toLocaleDateString(),
 payment: payDate.toLocaleDateString()
@@ -266,7 +281,7 @@ payment: payDate.toLocaleDateString()
 async function runStatement(){
 
 const file=document.getElementById("fileInput").files[0];
-if(!file){alert("Upload CSV");return;}
+if(!file) return;
 
 const text=await file.text();
 const rows=Papa.parse(text,{header:true,skipEmptyLines:true}).data;
@@ -277,9 +292,9 @@ const type=owners[owner].type;
 const month=monthSelect.value;
 const year=yearSelect.value;
 const endDay=lastDay(year,month);
-const dates=getStatementDates(year,month);
+const dates=getStatementDates(parseInt(year),parseInt(month));
 
-let totalGross=0,totalAcc=0,totalClean=0,totalPMC=0,totalOwner=0,totalDraft=0;
+let totalGross=0,totalAcc=0,totalClean=0,totalPMC=0,totalOwner=0,totalDraft=0,totalExpense=0;
 
 const grouped={};
 rows.forEach(r=>{
@@ -291,20 +306,22 @@ if(!grouped[listing])grouped[listing]=[];
 grouped[listing].push(r);
 });
 
-let tablesHTML="";
+let html="";
 
 Object.keys(grouped).forEach(listing=>{
 
-let pGross=0,pAcc=0,pClean=0,pPMC=0,pOwner=0,pDraft=0;
+if(!expenses[listing]) expenses[listing]=[];
 
-let table=`
+let pGross=0,pAcc=0,pClean=0,pPMC=0,pOwner=0,pDraft=0,pExpense=0;
+
+html+=`
 <div class="property">
 <h3>${listing}</h3>
 <small>${month}/1/${year} - ${month}/${endDay}/${year}</small>
+
 <table>
 <tr>
 <th>Reservation</th>
-<th>Platform</th>
 <th>Stay</th>
 <th>Accommodation</th>
 <th>PMC</th>
@@ -313,7 +330,6 @@ ${type==="payout"?"<th>Owner</th>":"<th>Cleaning</th><th>Draft</th>"}
 `;
 
 grouped[listing].forEach(r=>{
-
 let payout=num(r["TOTAL PAYOUT"]);
 let acc=num(r["ACCOMMODATION FARE"])-num(r["MARKUP"]);
 let cleaning=num(r["CLEANING FARE"]);
@@ -335,23 +351,22 @@ totalPMC+=pmc;
 if(type==="payout") totalOwner+=ownerPay;
 else totalDraft+=draft;
 
-table+=`
+html+=`
 <tr>
-<td>${r["CONFIRMATION CODE"]||""}</td>
-<td>${normalizePlatform(r["PLATFORM"])}</td>
+<td>${r["CONFIRMATION CODE"]}</td>
 <td>${stay(r["CHECK-IN DATE"],r["CHECK-OUT DATE"])}</td>
 <td>${money(acc)}</td>
 <td>${money(pmc)}</td>
 ${type==="payout"
 ?`<td>${money(ownerPay)}</td>`
 :`<td>${money(cleaning)}</td><td>${money(draft)}</td>`}
-</tr>
-`;
+</tr>`;
 });
 
-table+=`
+html+=`
 <tr class="total">
-<td>TOTAL</td><td></td><td></td>
+<td>TOTAL</td>
+<td></td>
 <td>${money(pAcc)}</td>
 <td>${money(pPMC)}</td>
 ${type==="payout"
@@ -363,56 +378,69 @@ ${type==="payout"
 <div class="property-payout">
 TOTAL PROPERTY PAYOUT: ${money(pGross)}
 </div>
-</div>
 `;
 
-tablesHTML+=table;
+/* EXPENSE TABLE */
+html+=`
+<div class="expense-section">
+<table>
+<tr><th>Type</th><th>Description</th><th>Amount</th><th></th></tr>
+`;
+
+expenses[listing].forEach((e,i)=>{
+pExpense+=num(e.amount);
+totalExpense+=num(e.amount);
+
+html+=`
+<tr>
+<td>
+<select onchange="updateExpense('${listing}',${i},'type',this.value)">
+<option ${e.type==="Maintenance"?"selected":""}>Maintenance</option>
+<option ${e.type==="Repair"?"selected":""}>Repair</option>
+<option ${e.type==="Pool Cleaning"?"selected":""}>Pool Cleaning</option>
+<option ${e.type==="Pest Control"?"selected":""}>Pest Control</option>
+<option ${e.type==="Purchase"?"selected":""}>Purchase</option>
+</select>
+</td>
+<td><input value="${e.desc}" onchange="updateExpense('${listing}',${i},'desc',this.value)"></td>
+<td><input type="number" value="${e.amount}" onchange="updateExpense('${listing}',${i},'amount',this.value)"></td>
+<td><button class="delete-btn" onclick="deleteExpense('${listing}',${i})">X</button></td>
+</tr>
+`;
 });
 
-/* SUMMARY */
+html+=`
+</table>
+<button onclick="addExpense('${listing}')">Add Expense</button>
+</div>
+</div>
+`;
+});
+
+/* SUMMARY BOX */
 let summary=`
+<div class="summary-box-container">
 <div class="summary">
-
-<div class="summary-box">
-<div class="summary-label">GROSS PAYOUT</div>
-<div class="summary-value">${money(totalGross)}</div>
+<div class="summary-box"><div class="summary-label">GROSS PAYOUT</div><div class="summary-value">${money(totalGross)}</div></div>
+<div class="summary-box"><div class="summary-label">ACCOMMODATION</div><div class="summary-value">${money(totalAcc)}</div></div>
+<div class="summary-box"><div class="summary-label">CLEANING FEE</div><div class="summary-value">${money(totalClean)}</div></div>
+<div class="summary-box"><div class="summary-label">EXPENSES</div><div class="summary-value">${money(totalExpense)}</div></div>
+<div class="summary-box"><div class="summary-label">PMC</div><div class="summary-value">${money(totalPMC)}</div></div>
+<div class="summary-box"><div class="summary-label">${type==="payout"?"OWNER PAYOUT":"DRAFT FROM OWNER"}</div>
+<div class="summary-value">${type==="payout"?money(totalOwner-totalExpense):money(totalDraft+totalExpense)}</div></div>
 </div>
-
-<div class="summary-box">
-<div class="summary-label">ACCOMMODATION</div>
-<div class="summary-value">${money(totalAcc)}</div>
-</div>
-
-<div class="summary-box">
-<div class="summary-label">CLEANING FEE</div>
-<div class="summary-value">${money(totalClean)}</div>
-</div>
-
-<div class="summary-box">
-<div class="summary-label">PMC</div>
-<div class="summary-value">${money(totalPMC)}</div>
-</div>
-
-<div class="summary-box">
-<div class="summary-label">${type==="payout"?"OWNER PAYOUT":"DRAFT FROM OWNER"}</div>
-<div class="summary-value">${type==="payout"?money(totalOwner):money(totalDraft)}</div>
-</div>
-
 </div>
 `;
 
 document.getElementById("output").innerHTML=`
 <div id="statement">
-<div class="header-row">
-<div class="company-block">
+<div class="header-block">
 <div class="company">OCEAN VACATIONS</div>
 <div class="company-info">
 www.oceanvacationsmb.com<br>
 oceanvacationsmb@gmail.com<br>
 843-222-6516
 </div>
-</div>
-
 <div class="statement-info">
 Statement Date: ${dates.statement}<br>
 Payment Date: ${dates.payment}
@@ -422,8 +450,9 @@ Payment Date: ${dates.payment}
 <div class="title">RESERVATION REPORT</div>
 <div class="owner">${owner}</div>
 <div class="period">${new Date(year,month-1).toLocaleString('default',{month:'long'})} 1 - ${endDay}, ${year}</div>
+
 ${summary}
-${tablesHTML}
+${html}
 </div>
 `;
 
@@ -435,7 +464,7 @@ html2pdf().set({
 margin:8,
 filename:"Reservation_Report.pdf",
 html2canvas:{scale:2},
-jsPDF:{unit:"mm",format:"a4",orientation:"portrait"}
+jsPDF:{unit:"mm",format:"a4"}
 }).from(document.getElementById("statement")).save();
 }
 

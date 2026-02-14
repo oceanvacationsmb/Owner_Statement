@@ -73,6 +73,7 @@ justify-content:center;
 gap:40px;
 margin:20px 0;
 flex-wrap:wrap;
+align-items:flex-start;
 }
 
 .summary div{
@@ -85,6 +86,16 @@ display:block;
 font-size:18px;
 font-weight:bold;
 margin-top:3px;
+}
+
+.highlight{
+font-size:16px;
+font-weight:bold;
+}
+
+.highlight span{
+font-size:22px;
+font-weight:bold;
 }
 
 .property{
@@ -305,7 +316,6 @@ rows+=`
 </tr>`;
 });
 
-/* Expenses as rows */
 let expTotal=0;
 expenses[listing].forEach((e,i)=>{
 expTotal+=num(e.amount);
@@ -362,11 +372,14 @@ ${type==="Draft"?`
 
 html+=`
 <div class="summary">
+<div class="highlight">
+${type==="Payout"?"Owner Payout":"Draft From Owner"}
+<span>${type==="Payout"?money(totalOwner):money(totalDraft)}</span>
+</div>
 <div>Accommodation<span>${money(totalAcc)}</span></div>
 <div>PMC<span>${money(totalPMC)}</span></div>
 ${type==="Draft"?`<div>Cleaning Fee<span>${money(totalClean)}</span></div>`:""}
 <div>Expenses<span>${money(totalExpense)}</span></div>
-<div>${type==="Payout"?"Owner Payout":"Draft From Owner"}<span>${type==="Payout"?money(totalOwner):money(totalDraft)}</span></div>
 </div>
 </div>`;
 

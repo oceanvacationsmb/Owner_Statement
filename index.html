@@ -16,17 +16,17 @@ color:#000;
 
 .topbar{
 background:#f3f3f3;
-padding:10px;
+padding:8px;
 display:flex;
 justify-content:center;
-gap:8px;
+gap:6px;
 flex-wrap:wrap;
 border-bottom:1px solid #ccc;
 }
 
 select,input,button{
-padding:5px;
-font-size:12px;
+padding:4px;
+font-size:11px;
 }
 
 button{
@@ -37,107 +37,120 @@ cursor:pointer;
 }
 
 .content{
-max-width:1000px;
+max-width:900px;
 margin:auto;
-padding:30px 15px;
+padding:25px 10px;
 }
 
 .header-row{
 display:flex;
 justify-content:space-between;
 align-items:flex-start;
+margin-bottom:10px;
+}
+
+.company-block{
+line-height:1.4;
 }
 
 .company{
-font-size:24px;
+font-size:22px;
 font-weight:900;
 letter-spacing:1px;
 }
 
+.company-info{
+font-size:11px;
+margin-top:4px;
+}
+
 .statement-info{
 text-align:right;
-font-size:12px;
+font-size:11px;
 }
 
 .title{
-font-size:30px;
+font-size:26px;
 font-weight:900;
 text-align:center;
-margin-top:10px;
+margin-top:8px;
 }
 
 .owner{
-font-size:24px;
+font-size:22px;
 font-weight:900;
 text-align:center;
-margin-top:10px;
+margin-top:6px;
 }
 
 .period{
 text-align:center;
-font-size:13px;
-margin-top:5px;
-margin-bottom:20px;
+font-size:12px;
+margin-top:4px;
+margin-bottom:18px;
 }
 
 .summary{
 display:flex;
 justify-content:space-between;
 flex-wrap:wrap;
-gap:15px;
-margin-bottom:30px;
+gap:10px;
+margin-bottom:25px;
 }
 
 .summary-box{
 flex:1;
-min-width:120px;
+min-width:110px;
 text-align:center;
 }
 
 .summary-label{
-font-size:11px;
+font-size:10px;
 font-weight:700;
 }
 
 .summary-value{
-font-size:20px;
+font-size:18px;
 font-weight:900;
 margin-top:4px;
 }
 
 .property{
-margin-top:25px;
+margin-top:20px;
 }
 
 .property h3{
-margin-bottom:5px;
-font-size:16px;
+margin-bottom:4px;
+font-size:14px;
 }
 
 .property small{
 display:block;
-margin-bottom:6px;
-font-size:11px;
+margin-bottom:5px;
+font-size:10px;
 }
 
 .property-payout{
-margin-top:6px;
+margin-top:5px;
 font-weight:900;
 text-align:right;
-font-size:12px;
+font-size:11px;
 }
 
 table{
-width:100%;
+margin:0 auto;
 border-collapse:collapse;
-margin-top:8px;
-font-size:11px;
+margin-top:6px;
+font-size:10px;
+width:auto;
+min-width:700px;
 }
 
 th,td{
 border:1px solid #000;
-padding:4px;
+padding:3px 5px;
 text-align:center;
+white-space:nowrap;
 }
 
 th{
@@ -152,19 +165,6 @@ background:#f5f5f5;
 .total{
 font-weight:bold;
 background:#e5e5e5;
-}
-
-.expense-table{
-margin-top:8px;
-}
-
-.delete-btn{
-background:red;
-color:white;
-border:none;
-padding:3px 6px;
-cursor:pointer;
-font-size:10px;
 }
 
 @media print{
@@ -254,10 +254,8 @@ return p.charAt(0).toUpperCase()+p.slice(1);
 function getStatementDates(year,month){
 let reportMonth=parseInt(month)-1;
 let reportYear=parseInt(year);
-
 let nextMonth=new Date(reportYear,reportMonth+1,1);
 let payDate=new Date(reportYear,reportMonth+1,5);
-
 return {
 statement: nextMonth.toLocaleDateString(),
 payment: payDate.toLocaleDateString()
@@ -283,7 +281,6 @@ const dates=getStatementDates(year,month);
 
 let totalGross=0,totalAcc=0,totalClean=0,totalPMC=0,totalOwner=0,totalDraft=0;
 
-/* GROUP */
 const grouped={};
 rows.forEach(r=>{
 if(!r["CHECK-IN DATE"])return;
@@ -407,7 +404,15 @@ let summary=`
 document.getElementById("output").innerHTML=`
 <div id="statement">
 <div class="header-row">
+<div class="company-block">
 <div class="company">OCEAN VACATIONS</div>
+<div class="company-info">
+www.oceanvacationsmb.com<br>
+oceanvacationsmb@gmail.com<br>
+843-222-6516
+</div>
+</div>
+
 <div class="statement-info">
 Statement Date: ${dates.statement}<br>
 Payment Date: ${dates.payment}
@@ -427,7 +432,7 @@ document.getElementById("pdfBtn").disabled=false;
 
 function downloadPDF(){
 html2pdf().set({
-margin:10,
+margin:8,
 filename:"Reservation_Report.pdf",
 html2canvas:{scale:2},
 jsPDF:{unit:"mm",format:"a4",orientation:"portrait"}

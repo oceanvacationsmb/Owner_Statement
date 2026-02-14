@@ -6,55 +6,19 @@
 <style>
 body { background:#0f172a; color:#e5e7eb; font-family:Arial; padding:40px; }
 h1 { text-align:center; font-size:40px; }
-.owner { text-align:center; font-size:32px; color:#facc15; margin-top:10px; }
-
+.owner { text-align:center; font-size:30px; color:#facc15; margin-top:10px; }
 .kpi { display:flex; justify-content:space-between; margin-top:30px; }
 .kpi div { text-align:center; flex:1; }
-.kpi span { display:block; font-size:26px; margin-top:6px; }
-
-.property-title { font-size:22px; margin-top:40px; }
-
-table {
- width:100%;
- border-collapse:collapse;
- margin-top:15px;
- background:#111827;
- border-radius:8px;
- overflow:hidden;
-}
-
-th, td {
- padding:10px;
- border:1px solid #1f2937;
-}
-
-th {
- background:#1f2937;
- text-align:center;
- font-weight:bold;
-}
-
+.kpi span { display:block; font-size:24px; margin-top:6px; }
+.property-title { font-size:20px; margin-top:40px; }
+table { width:100%; border-collapse:collapse; margin-top:15px; background:#111827; }
+th, td { padding:10px; border:1px solid #1f2937; }
+th { background:#1f2937; text-align:center; }
 td { text-align:right; }
 td.left { text-align:left; }
-
-.total-row {
- background:#1f2937;
- font-weight:bold;
-}
-
-button {
- padding:10px 20px;
- background:#2563eb;
- border:none;
- color:white;
- cursor:pointer;
- margin-top:15px;
-}
-
-input, select {
- padding:8px;
- margin:5px;
-}
+.total-row { background:#1f2937; font-weight:bold; }
+button { padding:10px 20px; background:#2563eb; border:none; color:white; cursor:pointer; margin-top:15px; }
+input, select { padding:8px; margin:5px; }
 </style>
 </head>
 
@@ -89,13 +53,16 @@ function stay(i,o){
  if(!i||!o) return "";
  let a=i.split("-");
  let b=o.split("-");
- return a[1]+"/"+a[2]+" - "+b[1]+"/"+b[2];
+ if(a.length===3 && b.length===3){
+   return a[1]+"/"+a[2]+" - "+b[1]+"/"+b[2];
+ }
+ return "";
 }
 
 function generate(){
 
 let file=document.getElementById("csvFile").files[0];
-if(!file){ alert("Upload CSV"); return; }
+if(!file){ alert("Upload CSV first"); return; }
 
 let percent=parseFloat(document.getElementById("percent").value)/100;
 let ownerType=document.getElementById("ownerType").value;
@@ -104,69 +71,39 @@ let owner=document.getElementById("ownerName").value;
 Papa.parse(file,{
 header:true,
 skipEmptyLines:true,
-complete:function(res){
+complete:function(result){
 
-let rows=res.data;
+let rows=result.data;
+if(!rows || rows.length===0){ alert("No data found"); return; }
+
 let grouped={};
 
 let totalReportTax=0;
 let totalNetAcc=0;
 let totalMgmt=0;
 
-rows.forEach(r=>{
+rows.forEach(function(r){
 
 if(num(r["CANCELED TOTAL PAYOUT"])!==0) return;
 
-let listing=r["LISTING'S NICKNAME"] || "Unknown";
+let listing = r["LISTING'S NICKNAME"];
+if(!listing) listing="Unknown Property";
 
 if(!grouped[listing]) grouped[listing]=[];
 grouped[listing].push(r);
 
 });
 
-Object.keys(grouped).forEach(listing=>{
-
-grouped[listing].forEach(r=>{
-
-let payout=num(r["TOTAL PAYOUT"]);
-let acc=num(r["ACCOMMODATION FARE"]);
-let adj=num(r["ACCOMMODATION FARE ADJUSTMENT"]);
-let markup=num(r["MARKUP"]);
-
-let trueAcc=(acc+adj)-markup;
-let mgmt=trueAcc*percent;
-let netAcc=trueAcc-mgmt;
-
-totalReportTax+=payout;
-totalNetAcc+=netAcc;
-totalMgmt+=mgmt;
-
-});
-
-});
-
-let draftAmount = ownerType==="direct"
- ? totalMgmt
- : totalNetAcc;
-
 let html="";
 html+="<div class='owner'>"+owner+"</div>";
 
-html+="<div class='kpi'>";
-html+="<div>REPORT TAX<span>$"+totalReportTax.toFixed(2)+"</span></div>";
-html+="<div>NET ACCOMMODATION<span>$"+totalNetAcc.toFixed(2)+"</span></div>";
-html+="<div>PMC COMMISSION<span>$"+totalMgmt.toFixed(2)+"</span></div>";
-html+="<div>"+(ownerType==="direct"?"DRAFT FROM OWNER":"PAY OWNER")+"<span>$"+draftAmount.toFixed(2)+"</span></div>";
-html+="</div>";
-
-Object.keys(grouped).forEach(listing=>{
+Object.keys(grouped).forEach(function(listing){
 
 let propertyNet=0;
 let propertyMgmt=0;
 let propertyPayout=0;
 
 html+="<div class='property-title'>🏠 "+listing+"</div>";
-
 html+="<table>";
 html+="<tr>";
 html+="<th>Reservation ID</th>";
@@ -177,26 +114,30 @@ html+="<th>PMC</th>";
 html+="<th>Net Accommodation</th>";
 html+="</tr>";
 
-grouped[listing].forEach(r=>{
+grouped[listing].forEach(function(r){
 
 let payout=num(r["TOTAL PAYOUT"]);
 let acc=num(r["ACCOMMODATION FARE"]);
 let adj=num(r["ACCOMMODATION FARE ADJUSTMENT"]);
 let markup=num(r["MARKUP"]);
 
-let trueAcc=(acc+adj)-markup;
-let mgmt=trueAcc*percent;
-let netAcc=trueAcc-mgmt;
+let accommodation=(acc+adj)-markup;
+let mgmt=accommodation*percent;
+let netAcc=accommodation-mgmt;
 
 propertyNet+=netAcc;
 propertyMgmt+=mgmt;
 propertyPayout+=payout;
 
+totalReportTax+=payout;
+totalNetAcc+=netAcc;
+totalMgmt+=mgmt;
+
 html+="<tr>";
 html+="<td class='left'>"+(r["CONFIRMATION CODE"]||"")+"</td>";
 html+="<td class='left'>"+(r["PLATFORM"]||"")+"</td>";
 html+="<td>"+stay(r["CHECK-IN DATE"],r["CHECK-OUT DATE"])+"</td>";
-html+="<td>$"+trueAcc.toFixed(2)+"</td>";
+html+="<td>$"+accommodation.toFixed(2)+"</td>";
 html+="<td>$"+mgmt.toFixed(2)+"</td>";
 html+="<td>$"+netAcc.toFixed(2)+"</td>";
 html+="</tr>";
@@ -214,6 +155,19 @@ html+="</tr>";
 html+="</table>";
 
 });
+
+let draftAmount = ownerType==="direct"
+ ? totalMgmt
+ : totalNetAcc;
+
+html="<div class='owner'>"+owner+"</div>"+
+"<div class='kpi'>"+
+"<div>REPORT TAX<span>$"+totalReportTax.toFixed(2)+"</span></div>"+
+"<div>NET ACCOMMODATION<span>$"+totalNetAcc.toFixed(2)+"</span></div>"+
+"<div>PMC COMMISSION<span>$"+totalMgmt.toFixed(2)+"</span></div>"+
+"<div>"+(ownerType==="direct"?"DRAFT FROM OWNER":"PAY OWNER")+
+"<span>$"+draftAmount.toFixed(2)+"</span></div>"+
+"</div>"+html;
 
 document.getElementById("output").innerHTML=html;
 

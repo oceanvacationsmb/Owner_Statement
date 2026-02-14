@@ -51,6 +51,7 @@ padding:40px 20px;
 font-size:26px;
 font-weight:900;
 text-align:center;
+letter-spacing:1px;
 }
 
 .title{
@@ -107,6 +108,18 @@ margin-top:35px;
 margin-bottom:5px;
 }
 
+.property small{
+display:block;
+margin-bottom:8px;
+font-size:12px;
+}
+
+.property-payout{
+margin-top:8px;
+font-weight:900;
+text-align:right;
+}
+
 table{
 width:100%;
 border-collapse:collapse;
@@ -132,10 +145,6 @@ background:#f2f2f2;
 .total{
 font-weight:bold;
 background:#e5e5e5;
-}
-
-.expense-table{
-margin-top:10px;
 }
 
 @media print{
@@ -240,7 +249,7 @@ const endDay=lastDay(year,month);
 
 let totalGross=0,totalAcc=0,totalClean=0,totalPMC=0,totalOwner=0,totalDraft=0;
 
-/* GROUP BY PROPERTY */
+/* GROUP */
 const grouped={};
 rows.forEach(r=>{
 if(!r["CHECK-IN DATE"])return;
@@ -251,7 +260,6 @@ if(!grouped[listing])grouped[listing]=[];
 grouped[listing].push(r);
 });
 
-/* BUILD TABLES */
 let tablesHTML="";
 
 Object.keys(grouped).forEach(listing=>{
@@ -320,6 +328,11 @@ ${type==="payout"
 :`<td>${money(pClean)}</td><td>${money(pDraft)}</td>`}
 </tr>
 </table>
+
+<div class="property-payout">
+TOTAL PROPERTY PAYOUT: ${money(pGross)}
+</div>
+
 </div>
 `;
 
@@ -359,10 +372,9 @@ let summary=`
 </div>
 `;
 
-/* RENDER */
 document.getElementById("output").innerHTML=`
 <div id="statement">
-<div class="company">Ocean Vacations Inc</div>
+<div class="company">OCEAN VACATIONS INC</div>
 <div class="title">RESERVATION REPORT</div>
 <div class="owner">${owner}</div>
 <div class="period">${new Date(year,month-1).toLocaleString('default',{month:'long'})} 1 - ${endDay}, ${year}</div>
@@ -374,7 +386,6 @@ ${tablesHTML}
 document.getElementById("pdfBtn").disabled=false;
 }
 
-/* PDF */
 function downloadPDF(){
 html2pdf().from(document.getElementById("statement")).save("Reservation_Report.pdf");
 }

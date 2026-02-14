@@ -10,52 +10,52 @@
 body{
 margin:0;
 font-family:Arial,Helvetica,sans-serif;
-background:#ffffff;
+background:#fff;
 color:#000;
 }
 
 .topbar{
 background:#f3f3f3;
-padding:12px;
+padding:10px;
 display:flex;
 justify-content:center;
-gap:10px;
+gap:8px;
 flex-wrap:wrap;
 border-bottom:1px solid #ccc;
 }
 
 select,input,button{
-padding:6px;
-font-size:13px;
+padding:5px;
+font-size:12px;
 }
 
 button{
-background:black;
-color:white;
+background:#000;
+color:#fff;
 border:none;
 cursor:pointer;
 }
 
 .content{
-max-width:1050px;
+max-width:1000px;
 margin:auto;
-padding:30px 20px;
+padding:20px;
 }
 
 .title{
-font-size:32px;
+font-size:28px;
 font-weight:bold;
 text-align:center;
 }
 
 .period{
 text-align:center;
-margin-top:5px;
 font-size:14px;
+margin-top:5px;
 }
 
 .owner{
-font-size:34px;
+font-size:30px;
 font-weight:bold;
 text-align:center;
 margin-top:10px;
@@ -63,32 +63,32 @@ margin-top:10px;
 
 .meta{
 text-align:center;
-font-size:14px;
+font-size:13px;
 margin-top:5px;
 }
 
 .summary{
 display:flex;
 justify-content:center;
-gap:50px;
-margin:25px 0;
+gap:40px;
+margin:20px 0;
 flex-wrap:wrap;
 }
 
 .summary div{
 text-align:center;
-font-size:14px;
+font-size:13px;
 }
 
 .summary span{
 display:block;
-font-size:20px;
+font-size:18px;
 font-weight:bold;
 margin-top:3px;
 }
 
 .property{
-margin-top:40px;
+margin-top:30px;
 page-break-inside:avoid;
 }
 
@@ -98,20 +98,20 @@ margin-bottom:3px;
 
 .property small{
 display:block;
-margin-bottom:8px;
-font-size:13px;
+margin-bottom:6px;
+font-size:12px;
 }
 
 table{
 width:100%;
 border-collapse:collapse;
-margin-top:8px;
-font-size:13px;
+margin-top:5px;
+font-size:12px;
 }
 
 th,td{
 border:1px solid #000;
-padding:5px;
+padding:4px;
 text-align:center;
 }
 
@@ -128,21 +128,21 @@ background:#f2f2f2;
 font-weight:bold;
 }
 
-.expense-btn{
-margin-top:8px;
-background:#444;
-color:#fff;
-padding:5px 8px;
-font-size:12px;
-}
-
 .delete-btn{
 background:red;
 color:white;
 border:none;
 padding:3px 6px;
 cursor:pointer;
-font-size:12px;
+font-size:11px;
+}
+
+.expense-btn{
+margin-top:6px;
+background:#444;
+color:#fff;
+padding:4px 8px;
+font-size:11px;
 }
 
 @media print{
@@ -202,7 +202,7 @@ yearSel.innerHTML+=`<option>${y}</option>`;
 }
 yearSel.value=now.getFullYear();
 
-let expenses = JSON.parse(localStorage.getItem("statement_expenses") || "{}");
+let expenses=JSON.parse(localStorage.getItem("statement_expenses")||"{}");
 
 function saveExpenses(){
 localStorage.setItem("statement_expenses",JSON.stringify(expenses));
@@ -293,26 +293,16 @@ rows+=`
 </tr>`;
 });
 
-let expRows="";
+/* Add expenses as lines in main table */
 let expTotal=0;
-
 expenses[listing].forEach((e,i)=>{
 expTotal+=num(e.amount);
-expRows+=`
+rows+=`
 <tr>
-<td>
-<select onchange="updateExpense('${listing}',${i},'type',this.value)">
-<option ${e.type==="Maintenance"?"selected":""}>Maintenance</option>
-<option ${e.type==="Repair"?"selected":""}>Repair</option>
-<option ${e.type==="Pool Cleaning"?"selected":""}>Pool Cleaning</option>
-<option ${e.type==="Pest Control"?"selected":""}>Pest Control</option>
-<option ${e.type==="Purchase"?"selected":""}>Purchase</option>
-</select>
-</td>
-<td><input value="${e.desc}" onchange="updateExpense('${listing}',${i},'desc',this.value)"></td>
-<td><input type="number" value="${e.amount}" onchange="updateExpense('${listing}',${i},'amount',this.value)"></td>
-<td><input type="file" onchange="updateExpense('${listing}',${i},'file',this.files[0]?.name||'')"></td>
-<td><button class="delete-btn" onclick="deleteExpense('${listing}',${i})">Delete</button></td>
+<td colspan="2">EXPENSE - ${e.type}</td>
+<td>${e.desc}</td>
+<td colspan="2">${money(e.amount)}</td>
+<td><button class="delete-btn" onclick="deleteExpense('${listing}',${i})">X</button></td>
 </tr>`;
 });
 
@@ -352,13 +342,8 @@ ${type==="Draft"?`
 </tr>`:""}
 </table>
 
-<h4>Expenses</h4>
-<table>
-<tr><th>Type</th><th>Description</th><th>Amount</th><th>Invoice</th><th></th></tr>
-${expRows}
-</table>
-
 <button class="expense-btn" onclick="addExpense('${listing}')">+ Add Expense</button>
+
 </div>
 `;
 }
@@ -378,13 +363,13 @@ saveExpenses();
 }
 
 function addExpense(listing){
-expenses[listing].push({type:"Maintenance",desc:"",amount:0,file:""});
-saveExpenses();
-runStatement();
-}
+let type=prompt("Expense Type (Maintenance/Repair/etc):","Maintenance");
+let desc=prompt("Description:","");
+let amount=prompt("Amount:","0");
+if(!type||!amount) return;
 
-function updateExpense(listing,index,field,value){
-expenses[listing][index][field]=value;
+if(!expenses[listing]) expenses[listing]=[];
+expenses[listing].push({type:type,desc:desc,amount:amount});
 saveExpenses();
 runStatement();
 }
@@ -398,7 +383,7 @@ runStatement();
 function downloadPDF(){
 const el=document.getElementById("statement");
 html2pdf().set({
-margin:10,
+margin:8,
 filename:"Reservation_Report.pdf",
 html2canvas:{scale:2},
 jsPDF:{unit:"mm",format:"a4",orientation:"portrait"}

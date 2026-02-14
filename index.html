@@ -105,9 +105,21 @@ tr:nth-child(even) td{background:#f3f4f6}
 <div id="output" class="content"></div>
 
 <script>
+/* OWNERS */
 const owners={
 "ERAN":{percent:0.12,type:"draft"},
-"GHO":{percent:0.10,type:"payout"}
+"GHO":{percent:0.10,type:"payout"},
+"1463 Basin Trail":{percent:0.12,type:"payout"},
+"113B-15S Surfside Beach":{percent:0.12,type:"payout"},
+"113B-13N Surfside Beach":{percent:0.12,type:"payout"},
+"115C-15N Surfside Beach":{percent:0.12,type:"payout"},
+"2131 Sanibel Myrtle Beach":{percent:0.15,type:"payout"},
+"1552 Elizabeth Ln Myrtle Beach":{percent:0.15,type:"payout"},
+"469C White River RD Myrtle Beach":{percent:0.12,type:"payout"},
+"4631-301 Wild Iris Drive Myrtle Beach":{percent:0.12,type:"payout"},
+"4679-204 Wild Iris Drive Myrtle Beach":{percent:0.12,type:"payout"},
+"508-1/2 33rd Ave North Myrtle Beach":{percent:0.15,type:"payout"},
+"214-2S 2nd Ave S. North Myrtle Beach":{percent:0.12,type:"payout"}
 };
 
 const ownerSelect=document.getElementById("owner");
@@ -160,7 +172,7 @@ row.innerHTML=`
 </select>
 </td>
 <td colspan="2"><input type="text" placeholder="Description"></td>
-<td><input type="number" step="0.01" value="0" onchange="recalc()"></td>
+<td><input type="number" step="0.01" value="0"></td>
 `;
 }
 

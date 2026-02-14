@@ -33,7 +33,6 @@ cursor:pointer
 }
 
 .topbar button:disabled{opacity:.5;cursor:not-allowed}
-.topbar select:disabled{background:#374151;color:#cbd5e1}
 .pdf-btn{background:#16a34a!important}
 
 .content{max-width:1100px;margin:auto;padding:40px 20px;text-align:center}
@@ -41,7 +40,6 @@ cursor:pointer
 .title{font-size:34px}
 .period{color:#9ca3af;margin-top:6px}
 .owner{font-size:42px;color:#facc15;margin-top:14px}
-.meta{margin-top:8px;color:#cbd5e1;font-size:14px}
 
 .summary{
 display:flex;
@@ -60,48 +58,33 @@ margin-top:6px
 .property-section{text-align:left;margin-top:34px;page-break-inside:avoid}
 .property-title{font-size:20px;margin-bottom:10px}
 
-table{
-width:100%;
-border-collapse:collapse;
-background:#111827
-}
-
-th,td{
-padding:10px;
-border:1px solid #1f2937
-}
-
+table{width:100%;border-collapse:collapse;background:#111827}
+th,td{padding:10px;border:1px solid #1f2937}
 th{background:#1f2937;text-align:center}
 td{text-align:right}
 td.left{text-align:left}
 
 .total-row{background:#1f2937;font-weight:bold}
 
-/* PRINT / PDF STYLE */
-@media print{
+.add-expense{
+margin-top:8px;
+background:#374151;
+color:white;
+padding:6px 10px;
+border:none;
+cursor:pointer;
+}
 
+@media print{
 body{background:white;color:black}
 .topbar{display:none}
 
 table{background:white}
-th{
-background:black;
-color:white;
-}
+th{background:black;color:white}
+td{background:white;color:black;border:1px solid #ccc}
+tr:nth-child(even) td{background:#f3f4f6}
 
-td{
-background:white;
-color:black;
-border:1px solid #ccc;
-}
-
-tr:nth-child(even) td{
-background:#f3f4f6;
-}
-
-.property-section{
-page-break-before:always;
-}
+.property-section{page-break-before:always}
 }
 </style>
 </head>
@@ -114,7 +97,7 @@ page-break-before:always;
 <select id="year"></select>
 <select id="percent" disabled></select>
 <select id="payType" disabled></select>
-<input type="file" id="fileInput" accept=".pdf,.csv">
+<input type="file" id="fileInput" accept=".csv">
 <button onclick="runStatement()">Run Statement</button>
 <button class="pdf-btn" id="pdfBtn" onclick="downloadPDF()" disabled>Download Clean PDF</button>
 </div>
@@ -122,21 +105,9 @@ page-break-before:always;
 <div id="output" class="content"></div>
 
 <script>
-/* OWNERS */
 const owners={
 "ERAN":{percent:0.12,type:"draft"},
-"GHO":{percent:0.10,type:"payout"},
-"1463 Basin Trail":{percent:0.12,type:"payout"},
-"113B-15S Surfside Beach":{percent:0.12,type:"payout"},
-"113B-13N Surfside Beach":{percent:0.12,type:"payout"},
-"115C-15N Surfside Beach":{percent:0.12,type:"payout"},
-"2131 Sanibel Myrtle Beach":{percent:0.15,type:"payout"},
-"1552 Elizabeth Ln Myrtle Beach":{percent:0.15,type:"payout"},
-"469C White River RD Myrtle Beach":{percent:0.12,type:"payout"},
-"4631-301 Wild Iris Drive Myrtle Beach":{percent:0.12,type:"payout"},
-"4679-204 Wild Iris Drive Myrtle Beach":{percent:0.12,type:"payout"},
-"508-1/2 33rd Ave North Myrtle Beach":{percent:0.15,type:"payout"},
-"214-2S 2nd Ave S. North Myrtle Beach":{percent:0.12,type:"payout"}
+"GHO":{percent:0.10,type:"payout"}
 };
 
 const ownerSelect=document.getElementById("owner");
@@ -171,18 +142,33 @@ function num(v){return parseFloat((v||"0").toString().replace(/[$,]/g,""))||0}
 function stay(i,o){if(!i||!o)return"";let a=i.split("-"),b=o.split("-");return a[1]+"/"+a[2]+" - "+b[1]+"/"+b[2]}
 function lastDay(y,m){return new Date(y,m,0).getDate()}
 function money(x){return "$"+(Number(x)||0).toFixed(2)}
-function hasTax(r){return num(r["CITY TAX"])+num(r["STATE TAX"])+num(r["COUNTY TAX"])+num(r["OCCUPANCY TAX"])>0}
+
+/* ADD EXPENSE ROW */
+function addExpenseRow(tableId){
+const table=document.getElementById(tableId);
+const row=table.insertRow(table.rows.length-1);
+
+row.innerHTML=`
+<td class="left">EXPENSE</td>
+<td colspan="2">
+<select>
+<option>Maintenance</option>
+<option>Repair</option>
+<option>Pool Cleaning</option>
+<option>Pest Control</option>
+<option>Purchase</option>
+</select>
+</td>
+<td colspan="2"><input type="text" placeholder="Description"></td>
+<td><input type="number" step="0.01" value="0" onchange="recalc()"></td>
+`;
+}
 
 /* MAIN */
 async function runStatement(){
 
 const file=document.getElementById("fileInput").files[0];
 if(!file){alert("Choose CSV");return;}
-
-if(!file.name.toLowerCase().endsWith(".csv")){
-alert("Use CSV for accurate statement.");
-return;
-}
 
 const text=await file.text();
 const rows=Papa.parse(text,{header:true,skipEmptyLines:true}).data;
@@ -194,8 +180,9 @@ const percent=owners[owner].percent;
 const payType=owners[owner].type;
 const endDay=lastDay(year,month);
 
-let totalAcc=0,totalMgmt=0,totalOwner=0,totalDraft=0,totalCleaning=0,totalTaxPayout=0;
+let totalAcc=0,totalMgmt=0,totalOwner=0,totalDraft=0,totalCleaning=0;
 let tablesHTML="";
+let index=0;
 
 /* GROUP BY LISTING */
 const grouped={};
@@ -211,11 +198,12 @@ grouped[listing].push(r);
 /* BUILD TABLES */
 Object.keys(grouped).forEach(listing=>{
 let pAcc=0,pMgmt=0,pOwner=0,pDraft=0,pCleaning=0;
+const tableId="table"+index++;
 
 let table=`
 <div class="property-section">
 <div class="property-title">🏠 ${listing}</div>
-<table>
+<table id="${tableId}">
 <tr>
 <th>Reservation ID</th>
 <th>Platform</th>
@@ -229,12 +217,9 @@ ${payType==="payout"?"<th>Owner Payout</th>":"<th>Cleaning</th><th>Draft</th>"}
 grouped[listing].forEach(r=>{
 let acc=num(r["ACCOMMODATION FARE"])-num(r["MARKUP"]);
 let cleaning=num(r["CLEANING FARE"]);
-let payout=num(r["TOTAL PAYOUT"]);
 let mgmt=acc*percent;
 let ownerPay=acc-mgmt;
 let draft=mgmt+cleaning;
-
-if(hasTax(r)) totalTaxPayout+=payout;
 
 pAcc+=acc;pMgmt+=mgmt;pOwner+=ownerPay;pDraft+=draft;pCleaning+=cleaning;
 totalAcc+=acc;totalMgmt+=mgmt;totalCleaning+=cleaning;
@@ -259,7 +244,10 @@ table+=`
 ${payType==="payout"?`<td>${money(pOwner)}</td>`:`<td>${money(pCleaning)}</td><td>${money(pDraft)}</td>`}
 </tr>
 </table>
+
+<button class="add-expense" onclick="addExpenseRow('${tableId}')">+ Add Expense</button>
 </div>`;
+
 tablesHTML+=table;
 });
 
@@ -269,7 +257,6 @@ let summary=`
 <div class="summary-box">ACCOMMODATION<span>${money(totalAcc)}</span></div>
 <div class="summary-box">PMC COMMISSION<span>${money(totalMgmt)}</span></div>
 <div class="summary-box">EXPENSES<span>${money(totalCleaning)}</span></div>
-${payType==="draft"?`<div class="summary-box">REPORTABLE TAX PAYOUT<span>${money(totalTaxPayout)}</span></div>`:""}
 ${payType==="payout"
 ?`<div class="summary-box">OWNER PAYOUT<span>${money(totalOwner)}</span></div>`
 :`<div class="summary-box">DRAFT FROM OWNER<span>${money(totalDraft)}</span></div>`}

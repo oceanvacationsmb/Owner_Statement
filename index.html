@@ -2,7 +2,12 @@
 <html>
 <head>
 <title>Reservation Statement</title>
+
+<!-- CSV -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+
+<!-- PDF -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
 <style>
 body{margin:0;font-family:Arial;background:#0f172a;color:#e5e7eb}
@@ -24,7 +29,8 @@ th{background:#1f2937;text-align:center}
 td{text-align:right}
 td.left{text-align:left}
 .total-row{background:#1f2937;font-weight:bold}
-.print-btn{background:#16a34a!important}
+.pdf-btn{background:#16a34a!important}
+input[type=file]{color:#e5e7eb}
 @media print{
 .topbar{display:none}
 body{background:white;color:black}
@@ -38,7 +44,6 @@ table{background:white}
 <div class="topbar">
 
 <select id="owner" onchange="applyOwnerDefaults()"></select>
-
 <select id="month"></select>
 <select id="year"></select>
 
@@ -46,14 +51,16 @@ table{background:white}
 <select id="ownerType" disabled></select>
 
 <input type="file" id="csvFile" accept=".csv">
+
 <button onclick="generate()">Run Statement</button>
-<button class="print-btn" onclick="window.print()">Export / Print PDF</button>
+<button class="pdf-btn" onclick="downloadPDF()">Download Clean PDF</button>
+
 </div>
 
 <div id="output" class="content"></div>
 
 <script>
-/* ========= OWNER CONFIG ========= */
+/* ========= OWNERS ========= */
 const owners={
 "ERAN":{percent:0.12,type:"draft"},
 "GHO":{percent:0.10,type:"payout"},
@@ -100,7 +107,6 @@ yearSelect.innerHTML+=`<option value="${y}">${y}</option>`;
 }
 yearSelect.value=now.getFullYear();
 
-/* ========= INIT ========= */
 applyOwnerDefaults();
 
 /* ========= HELPERS ========= */
@@ -112,12 +118,12 @@ return a[1]+"/"+a[2]+" - "+b[1]+"/"+b[2];
 }
 function lastDay(year,month){return new Date(year,month,0).getDate()}
 
-/* ========= MAIN ========= */
+/* ========= GENERATE ========= */
 function generate(){
 
 const output=document.getElementById("output");
 const file=document.getElementById("csvFile").files[0];
-if(!file){alert("Upload CSV first");return}
+if(!file){alert("Please choose CSV file");return}
 
 let month=monthSelect.value;
 let year=yearSelect.value;
@@ -134,7 +140,7 @@ complete:function(res){
 let rows=res.data;
 let grouped={};
 
-let totalTrue=0,totalMgmt=0,totalCleaning=0,totalOwner=0,totalDraft=0,totalReportTax=0;
+let totalAcc=0,totalMgmt=0,totalOwner=0,totalDraft=0,totalReportTax=0;
 
 rows.forEach(r=>{
 if(num(r["CANCELED TOTAL PAYOUT"])!==0)return;
@@ -148,6 +154,7 @@ grouped[listing].push(r);
 });
 
 let html=`
+<div id="statement">
 <div class="title">RESERVATION STATEMENT</div>
 <div class="period">
 ${new Date(year,month-1).toLocaleString('default',{month:'long'})} 1 -
@@ -158,10 +165,10 @@ ${new Date(year,month-1).toLocaleString('default',{month:'long'})} ${endDay}, ${
 
 let tablesHTML="";
 
-/* ========= GROUP LOOP ========= */
+/* ========= PROPERTY LOOP ========= */
 Object.keys(grouped).forEach(listing=>{
 
-let pTrue=0,pMgmt=0,pCleaning=0,pOwner=0,pDraft=0,pReportTax=0;
+let pAcc=0,pMgmt=0,pOwner=0,pDraft=0;
 
 let table=`
 <div class="property-section">
@@ -171,16 +178,15 @@ let table=`
 <th>Reservation ID</th>
 <th>Platform</th>
 <th>Stay</th>
-<th>True Accommodation</th>
+<th>Accommodation</th>
 <th>PMC</th>
-${ownerType==="payout"?"<th>Owner Payout</th>":"<th>Cleaning</th><th>Draft</th>"}
+${ownerType==="payout"?"<th>Owner Payout</th>":"<th>Draft</th>"}
 </tr>
 `;
 
 grouped[listing].forEach(r=>{
 
-let acc=num(r["ACCOMMODATION FARE"]);
-let markup=num(r["MARKUP"]);
+let acc=num(r["ACCOMMODATION FARE"]) - num(r["MARKUP"]);
 let cleaning=num(r["CLEANING FARE"]);
 let payout=num(r["TOTAL PAYOUT"]);
 
@@ -190,27 +196,20 @@ num(r["STATE TAX"]) +
 num(r["COUNTY TAX"]) +
 num(r["OCCUPANCY TAX"]);
 
-let trueAcc=acc-markup;
-let mgmt=trueAcc*percent;
-let ownerPay=trueAcc-mgmt;
+let mgmt=acc*percent;
+let ownerPay=acc-mgmt;
 let draft=mgmt+cleaning;
 
-/* TAX REPORT LOGIC */
-if(taxCollected>0){
-pReportTax+=payout;
-totalReportTax+=payout;
-}
+/* REPORTABLE TAX = payout only when tax exists */
+if(taxCollected>0) totalReportTax+=payout;
 
-pTrue+=trueAcc;
+pAcc+=acc;
 pMgmt+=mgmt;
-pCleaning+=cleaning;
 pOwner+=ownerPay;
 pDraft+=draft;
 
-totalTrue+=trueAcc;
+totalAcc+=acc;
 totalMgmt+=mgmt;
-totalCleaning+=cleaning;
-
 if(ownerType==="payout") totalOwner+=ownerPay;
 else totalDraft+=draft;
 
@@ -219,23 +218,22 @@ table+=`
 <td class="left">${r["CONFIRMATION CODE"]||""}</td>
 <td class="left">${r["PLATFORM"]||""}</td>
 <td>${stay(r["CHECK-IN DATE"],r["CHECK-OUT DATE"])}</td>
-<td>$${trueAcc.toFixed(2)}</td>
+<td>$${acc.toFixed(2)}</td>
 <td>$${mgmt.toFixed(2)}</td>
 ${ownerType==="payout"
 ?`<td>$${ownerPay.toFixed(2)}</td>`
-:`<td>$${cleaning.toFixed(2)}</td><td>$${draft.toFixed(2)}</td>`}
+:`<td>$${draft.toFixed(2)}</td>`}
 </tr>`;
 });
 
-/* PROPERTY TOTAL */
 table+=`
 <tr class="total-row">
 <td class="left">TOTAL</td><td></td><td></td>
-<td>$${pTrue.toFixed(2)}</td>
+<td>$${pAcc.toFixed(2)}</td>
 <td>$${pMgmt.toFixed(2)}</td>
 ${ownerType==="payout"
 ?`<td>$${pOwner.toFixed(2)}</td>`
-:`<td>$${pCleaning.toFixed(2)}</td><td>$${pDraft.toFixed(2)}</td>`}
+:`<td>$${pDraft.toFixed(2)}</td>`}
 </tr>
 </table>
 </div>
@@ -247,7 +245,7 @@ tablesHTML+=table;
 /* ========= SUMMARY ========= */
 let summary=`
 <div class="summary">
-<div class="summary-box">TRUE ACCOMMODATION<span>$${totalTrue.toFixed(2)}</span></div>
+<div class="summary-box">ACCOMMODATION<span>$${totalAcc.toFixed(2)}</span></div>
 <div class="summary-box">PMC COMMISSION<span>$${totalMgmt.toFixed(2)}</span></div>
 <div class="summary-box">REPORTABLE TAX PAYOUT<span>$${totalReportTax.toFixed(2)}</span></div>
 ${ownerType==="payout"
@@ -256,9 +254,23 @@ ${ownerType==="payout"
 </div>
 `;
 
-output.innerHTML=html+summary+tablesHTML;
+output.innerHTML=html+summary+tablesHTML+"</div>";
 }
 });
+}
+
+/* ========= PDF DOWNLOAD ========= */
+function downloadPDF(){
+const element=document.getElementById("statement");
+if(!element){alert("Run statement first");return;}
+
+html2pdf().set({
+margin:10,
+filename:"reservation_statement.pdf",
+image:{type:"jpeg",quality:0.98},
+html2canvas:{scale:2},
+jsPDF:{unit:"mm",format:"a4",orientation:"portrait"}
+}).from(element).save();
 }
 </script>
 

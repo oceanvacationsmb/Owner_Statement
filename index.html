@@ -171,4 +171,27 @@ let net=payout-mgmt-cleaning-expense;
 html+="<tr>";
 html+="<td class='left'>"+(r["CONFIRMATION CODE"]||"")+"</td>";
 html+="<td>"+stay(r["CHECK-IN DATE"],r["CHECK-OUT DATE"])+"</td>";
-html+="<td>$"+pay
+html+="<td>$"+payout.toFixed(2)+"</td>";
+html+="<td>$"+cleaning.toFixed(2)+"</td>";
+html+="<td>$"+mgmt.toFixed(2)+"</td>";
+html+="<td>$"+expense.toFixed(2)+"</td>";
+html+="<td>$"+net.toFixed(2)+"</td>";
+html+="</tr>";
+
+});
+
+html+="</table>";
+
+});
+
+document.getElementById("statement").innerHTML=html;
+
+}
+});
+
+}
+
+</script>
+
+</body>
+</html>

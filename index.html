@@ -7,11 +7,11 @@
         body { font-family: Arial; padding: 40px; background: #f2f4f7; }
         input, select { padding: 10px; margin: 10px 0; width: 400px; }
         button { padding: 12px 25px; background: #2c7be5; color: white; border: none; cursor: pointer; font-size: 16px; }
-        .result { margin-top: 30px; padding: 25px; background: white; border-radius: 10px; }
         table { width: 100%; margin-top: 30px; border-collapse: collapse; background: white; }
         th, td { padding: 8px; border: 1px solid #ddd; text-align: right; }
         th { background: #f0f0f0; }
-        .debug { margin-top:20px; font-size:13px; color:#666; }
+        td.left { text-align: left; }
+        .summary { margin-top: 30px; padding: 25px; background: white; border-radius: 10px; }
     </style>
 </head>
 <body>
@@ -28,22 +28,14 @@
 
 <button onclick="processCSV()">Calculate</button>
 
-<div class="result" id="summary"></div>
+<div class="summary" id="summary"></div>
 <div id="tableContainer"></div>
-<div class="debug" id="debug"></div>
 
 <script>
+
 function cleanNumber(value) {
     if (!value) return 0;
     return parseFloat(value.toString().replace(/[$,]/g, '')) || 0;
-}
-
-function findColumn(headers, possibleNames) {
-    for (let name of possibleNames) {
-        let found = headers.find(h => h.trim().toUpperCase() === name);
-        if (found) return found;
-    }
-    return null;
 }
 
 function processCSV() {
@@ -63,22 +55,6 @@ function processCSV() {
         complete: function(results) {
 
             const data = results.data;
-            const headers = results.meta.fields;
-
-            document.getElementById("debug").innerHTML =
-                "<strong>Detected Columns:</strong><br>" + headers.join("<br>");
-
-            const accCol = findColumn(headers, ["ACCOMMODATION FARE"]);
-            const markupCol = findColumn(headers, ["MARKUP"]);
-            const cleaningCol = findColumn(headers, ["CLEANING FARE"]);
-            const payoutCol = findColumn(headers, ["TOTAL PAYOUT"]);
-            const resCol = headers[0];
-
-            if (!accCol || !payoutCol) {
-                document.getElementById("summary").innerHTML =
-                    "<strong>ERROR:</strong> Required columns not found. Check debug list below.";
-                return;
-            }
 
             let totalBase = 0;
             let totalManagement = 0;
@@ -89,7 +65,10 @@ function processCSV() {
             let tableHTML = `
                 <table>
                 <tr>
-                    <th style="text-align:left">Reservation</th>
+                    <th>Listing</th>
+                    <th>Platform</th>
+                    <th>Check-In</th>
+                    <th>Check-Out</th>
                     <th>Accommodation</th>
                     <th>Markup</th>
                     <th>True Base</th>
@@ -101,10 +80,19 @@ function processCSV() {
 
             data.forEach(row => {
 
-                const acc = cleanNumber(row[accCol]);
-                const markup = cleanNumber(row[markupCol]);
-                const cleaning = cleanNumber(row[cleaningCol]);
-                const payout = cleanNumber(row[payoutCol]);
+                if (cleanNumber(row["CANCELED TOTAL PAYOUT"]) !== 0) return;
+
+                const listing = row["LISTING'S NICKNAME"] || "";
+                const platform = row["PLATFORM"] || "";
+                const checkin = row["CHECK-IN DATE"] || "";
+                const checkout = row["CHECK-OUT DATE"] || "";
+
+                const acc = cleanNumber(row["ACCOMMODATION FARE"]) +
+                            cleanNumber(row["ACCOMMODATION FARE ADJUSTMENT"]);
+
+                const markup = cleanNumber(row["MARKUP"]);
+                const cleaning = cleanNumber(row["CLEANING FARE"]);
+                const payout = cleanNumber(row["TOTAL PAYOUT"]);
 
                 const trueBase = acc - markup;
                 const management = trueBase * percent;
@@ -117,7 +105,10 @@ function processCSV() {
 
                 tableHTML += `
                     <tr>
-                        <td style="text-align:left">${row[resCol] || ""}</td>
+                        <td class="left">${listing}</td>
+                        <td class="left">${platform}</td>
+                        <td>${checkin}</td>
+                        <td>${checkout}</td>
                         <td>$${acc.toFixed(2)}</td>
                         <td>$${markup.toFixed(2)}</td>
                         <td>$${trueBase.toFixed(2)}</td>
@@ -149,6 +140,7 @@ function processCSV() {
         }
     });
 }
+
 </script>
 
 </body>

@@ -37,15 +37,16 @@ cursor:pointer;
 }
 
 .content{
-max-width:980px;
+max-width:1000px;
 margin:auto;
 padding:20px;
 }
 
 .title{
-font-size:28px;
-font-weight:bold;
+font-size:34px;
+font-weight:900;
 text-align:center;
+letter-spacing:1px;
 }
 
 .period{
@@ -55,46 +56,30 @@ margin-top:5px;
 }
 
 .owner{
-font-size:30px;
+font-size:28px;
 font-weight:bold;
 text-align:center;
 margin-top:10px;
 }
 
-.meta{
-text-align:center;
-font-size:13px;
-margin-top:5px;
-}
-
 .summary{
 display:flex;
-justify-content:center;
-gap:40px;
-margin:20px 0;
+justify-content:space-between;
+margin:25px 0;
+font-size:13px;
 flex-wrap:wrap;
 }
 
 .summary div{
 text-align:center;
-font-size:13px;
+flex:1;
 }
 
 .summary span{
 display:block;
 font-size:18px;
 font-weight:bold;
-margin-top:3px;
-}
-
-.highlight{
-font-size:16px;
-font-weight:bold;
-}
-
-.highlight span{
-font-size:22px;
-font-weight:bold;
+margin-top:4px;
 }
 
 .property{
@@ -271,31 +256,14 @@ if(!grouped[listing]) grouped[listing]=[];
 grouped[listing].push(r);
 });
 
-let totalAcc=0,totalPMC=0,totalClean=0,totalExpense=0,totalOwner=0,totalDraft=0;
+let totalGross=0,totalAcc=0,totalClean=0,totalExpense=0,totalPMC=0,totalDraft=0,totalOwner=0;
 
 let html=`
 <div id="statement">
 <div class="title">RESERVATION REPORT</div>
 <div class="period">${fullPeriod(month,year)}</div>
 <div class="owner">${owner}</div>
-<div class="meta">Rate: ${percent*100}% | Type: ${type}</div>
 `;
-
-/* SUMMARY MOVED TO TOP */
-html+=`<div class="summary">`;
-
-html+=`
-<div class="highlight">
-${type==="Payout"?"Owner Payout":"Draft From Owner"}
-<span id="mainTotal"></span>
-</div>
-
-<div>Accommodation<span id="sumAcc"></span></div>
-<div>PMC<span id="sumPMC"></span></div>
-${type==="Draft"?`<div>Cleaning Fee<span id="sumClean"></span></div>`:""}
-<div>Expenses<span id="sumExp"></span></div>
-
-</div>`;
 
 /* PROPERTIES */
 for(let listing in grouped){
@@ -303,20 +271,22 @@ for(let listing in grouped){
 if(!expenses[listing]) expenses[listing]=[];
 
 let rows="";
-let pAcc=0,pPMC=0,pClean=0,pOwner=0,pDraft=0,pTotalPayout=0;
+let expRows="";
+let pGross=0,pAcc=0,pClean=0,pPMC=0,pDraft=0,pOwner=0,pTotalPayout=0;
 
 grouped[listing].forEach(r=>{
+let gross=num(r["TOTAL PAYOUT"]);
 let acc=num(r["ACCOMMODATION FARE"])-num(r["MARKUP"]);
 let clean=num(r["CLEANING FARE"]);
-let payout=num(r["TOTAL PAYOUT"]);
 let pmc=acc*percent;
 let ownerPay=acc-pmc;
 let draft=pmc+clean;
 
+pGross+=gross;
 pAcc+=acc;
-pPMC+=pmc;
 pClean+=clean;
-pTotalPayout+=payout;
+pPMC+=pmc;
+pTotalPayout+=gross;
 
 if(type==="Payout") pOwner+=ownerPay;
 else pDraft+=draft;
@@ -333,23 +303,31 @@ ${type==="Draft"?`<td>${money(clean)}</td>`:""}
 </tr>`;
 });
 
+/* Expense table rows */
 let expTotal=0;
-let expRows="";
-
 expenses[listing].forEach((e,i)=>{
 expTotal+=num(e.amount);
 expRows+=`
 <tr>
-<td>${e.type}</td>
-<td>${e.desc}</td>
-<td>${money(e.amount)}</td>
+<td>
+<select onchange="updateExpense('${listing}',${i},'type',this.value)">
+<option ${e.type==="Maintenance"?"selected":""}>Maintenance</option>
+<option ${e.type==="Repair"?"selected":""}>Repair</option>
+<option ${e.type==="Pool Cleaning"?"selected":""}>Pool Cleaning</option>
+<option ${e.type==="Pest Control"?"selected":""}>Pest Control</option>
+<option ${e.type==="Purchase"?"selected":""}>Purchase</option>
+</select>
+</td>
+<td><input value="${e.desc}" onchange="updateExpense('${listing}',${i},'desc',this.value)"></td>
+<td><input type="number" value="${e.amount}" onchange="updateExpense('${listing}',${i},'amount',this.value)"></td>
 <td><button class="delete-btn" onclick="deleteExpense('${listing}',${i})">X</button></td>
 </tr>`;
 });
 
+totalGross+=pGross;
 totalAcc+=pAcc;
-totalPMC+=pPMC;
 totalClean+=pClean;
+totalPMC+=pPMC;
 totalExpense+=expTotal;
 
 if(type==="Payout") totalOwner+=pOwner-expTotal;
@@ -378,11 +356,6 @@ ${rows}
 ${type==="Draft"?`<td>${money(pClean)}</td>`:""}
 <td>${type==="Payout"?money(pOwner-expTotal):money(pDraft+expTotal)}</td>
 </tr>
-${type==="Draft"?`
-<tr>
-<td colspan="${type==="Draft"?6:5}">Total Payout</td>
-<td>${money(pTotalPayout)}</td>
-</tr>`:""}
 </table>
 
 <h4>Expenses</h4>
@@ -397,28 +370,31 @@ ${expRows}
 `;
 }
 
-html+=`</div>`;
+/* SUMMARY ORDER */
+html+=`
+<div class="summary">
+<div>GROSS PAYOUT<span>${money(totalGross)}</span></div>
+<div>ACCOMMODATION<span>${money(totalAcc)}</span></div>
+<div>CLEANING FEE<span>${money(totalClean)}</span></div>
+<div>EXPENSES<span>${money(totalExpense)}</span></div>
+<div>PMC<span>${money(totalPMC)}</span></div>
+<div>DRAFT FROM OWNER<span>${type==="Payout"?money(totalOwner):money(totalDraft)}</span></div>
+</div>
+</div>`;
 
 document.getElementById("output").innerHTML=html;
-
-/* Fill summary values */
-document.getElementById("sumAcc").innerText=money(totalAcc);
-document.getElementById("sumPMC").innerText=money(totalPMC);
-if(type==="Draft") document.getElementById("sumClean").innerText=money(totalClean);
-document.getElementById("sumExp").innerText=money(totalExpense);
-document.getElementById("mainTotal").innerText=type==="Payout"?money(totalOwner):money(totalDraft);
-
 saveExpenses();
 }
 
 function addExpense(listing){
-let type=prompt("Expense Type:","Maintenance");
-let desc=prompt("Description:","");
-let amount=prompt("Amount:","0");
-if(!type||!amount) return;
-
 if(!expenses[listing]) expenses[listing]=[];
-expenses[listing].push({type:type,desc:desc,amount:amount});
+expenses[listing].push({type:"Maintenance",desc:"",amount:0});
+saveExpenses();
+runStatement();
+}
+
+function updateExpense(listing,index,field,value){
+expenses[listing][index][field]=value;
 saveExpenses();
 runStatement();
 }

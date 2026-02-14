@@ -12,7 +12,7 @@ body { margin:0; font-family:Arial; background:#0f172a; color:#e5e7eb; }
  background:#111827;
  padding:15px 30px;
  display:flex;
- align-items:center;
+ justify-content:center;
  gap:15px;
  flex-wrap:wrap;
  border-bottom:1px solid #1f2937;
@@ -30,31 +30,30 @@ body { margin:0; font-family:Arial; background:#0f172a; color:#e5e7eb; }
  background:#2563eb;
  color:white;
  cursor:pointer;
+ font-weight:bold;
 }
 
 /* MAIN CONTENT */
 .content {
  padding:50px;
- max-width:1300px;
+ max-width:1100px;
  margin:auto;
+ text-align:center;
 }
 
 /* HEADER */
 .title {
- text-align:center;
  font-size:34px;
  letter-spacing:1px;
 }
 
 .period {
- text-align:center;
  font-size:16px;
  color:#9ca3af;
  margin-top:5px;
 }
 
 .owner {
- text-align:center;
  font-size:42px;
  color:#facc15;
  margin-top:15px;
@@ -63,13 +62,13 @@ body { margin:0; font-family:Arial; background:#0f172a; color:#e5e7eb; }
 /* SUMMARY */
 .summary {
  display:flex;
- justify-content:space-between;
- margin-top:35px;
- margin-bottom:50px;
+ justify-content:center;
+ gap:60px;
+ margin-top:30px;
+ margin-bottom:40px;
 }
 
 .summary-box {
- flex:1;
  text-align:center;
 }
 
@@ -80,9 +79,13 @@ body { margin:0; font-family:Arial; background:#0f172a; color:#e5e7eb; }
 }
 
 /* TABLES */
+.property-section {
+ margin-top:40px;
+ text-align:left;
+}
+
 .property-title {
  font-size:20px;
- margin-top:40px;
  margin-bottom:10px;
 }
 
@@ -124,10 +127,14 @@ td.left { text-align:left; }
 </select>
 
 <select id="month"></select>
-
 <select id="year"></select>
 
-<input type="number" id="percent" value="12" placeholder="Management %">
+<select id="percent">
+<option value="0.10">10%</option>
+<option value="0.12" selected>12%</option>
+<option value="0.15">15%</option>
+<option value="0.20">20%</option>
+</select>
 
 <select id="ownerType">
 <option value="pmc">PMC Holds Payout</option>
@@ -136,7 +143,7 @@ td.left { text-align:left; }
 
 <input type="file" id="csvFile" accept=".csv">
 
-<button onclick="generate()">Generate Statement</button>
+<button onclick="generate()">Run Statement</button>
 
 </div>
 
@@ -144,7 +151,7 @@ td.left { text-align:left; }
 
 <script>
 
-/* Populate Month & Year */
+/* Month & Year Setup */
 const monthSelect=document.getElementById("month");
 const yearSelect=document.getElementById("year");
 const now=new Date();
@@ -186,7 +193,7 @@ if(!file){ alert("Upload CSV first"); return; }
 let month=monthSelect.value;
 let year=yearSelect.value;
 let owner=document.getElementById("owner").value;
-let percent=parseFloat(document.getElementById("percent").value)/100;
+let percent=parseFloat(document.getElementById("percent").value);
 let ownerType=document.getElementById("ownerType").value;
 
 let endDay=lastDay(year,month);
@@ -275,62 +282,16 @@ if(ownerType==="pmc"){
 });
 
 html+=`
-<div class="property-title">🏠 ${listing}</div>
-<table>
-<tr>
-<th>Reservation ID</th>
-<th>Platform</th>
-<th>Stay</th>
-<th>True Accommodation</th>
-<th>PMC</th>
-${ownerType==="pmc"?"<th>Owner Payout</th>":"<th>Cleaning</th><th>Draft From Owner</th>"}
-</tr>`;
-
-grouped[listing].forEach(function(r){
-
-let acc=num(r["ACCOMMODATION FARE"]);
-let markup=num(r["MARKUP"]);
-let cleaning=num(r["CLEANING FARE"]);
-let trueAcc=acc-markup;
-let mgmt=trueAcc*percent;
-let ownerPay=trueAcc-mgmt;
-let draft=mgmt+cleaning;
-
-html+=`
-<tr>
-<td class="left">${r["CONFIRMATION CODE"]||""}</td>
-<td class="left">${r["PLATFORM"]||""}</td>
-<td>${stay(r["CHECK-IN DATE"],r["CHECK-OUT DATE"])}</td>
-<td>$${trueAcc.toFixed(2)}</td>
-<td>$${mgmt.toFixed(2)}</td>
-${ownerType==="pmc"
- ? `<td>$${ownerPay.toFixed(2)}</td>`
- : `<td>$${cleaning.toFixed(2)}</td><td>$${draft.toFixed(2)}</td>`}
-</tr>`;
-});
-
-html+=`
-<tr class="total-row">
-<td class="left">TOTAL</td><td></td><td></td>
-<td>$${propertyTrue.toFixed(2)}</td>
-<td>$${propertyMgmt.toFixed(2)}</td>
-${ownerType==="pmc"
- ? `<td>$${propertyOwner.toFixed(2)}</td>`
- : `<td>$${propertyCleaning.toFixed(2)}</td><td>$${propertyDraft.toFixed(2)}</td>`}
-</tr>
-</table>`;
-});
-
-html+=`
 <div class="summary">
 <div class="summary-box">TRUE ACCOMMODATION<span>$${totalTrue.toFixed(2)}</span></div>
 <div class="summary-box">PMC COMMISSION<span>$${totalMgmt.toFixed(2)}</span></div>
-<div class="summary-box">TOTAL TAX TO REPORT<span>$${totalTax.toFixed(2)}</span></div>
+<div class="summary-box">TOTAL TAX<span>$${totalTax.toFixed(2)}</span></div>
 ${ownerType==="pmc"
  ? `<div class="summary-box">OWNER PAYOUT<span>$${totalOwner.toFixed(2)}</span></div>`
  : `<div class="summary-box">DRAFT FROM OWNER<span>$${totalDraft.toFixed(2)}</span></div>`}
-</div>
-`;
+</div>`;
+
+});
 
 document.getElementById("output").innerHTML=html;
 

@@ -9,6 +9,9 @@
         input, select { padding: 10px; margin: 10px 0; width: 400px; }
         button { padding: 12px 25px; background: #2c7be5; color: white; border: none; cursor: pointer; font-size: 16px; }
         .result { margin-top: 30px; padding: 25px; background: white; border-radius: 10px; }
+        table { width: 100%; margin-top: 30px; border-collapse: collapse; background: white; }
+        th, td { padding: 10px; border: 1px solid #ddd; text-align: right; }
+        th { background: #f0f0f0; }
     </style>
 </head>
 <body>
@@ -29,7 +32,8 @@
 
 <button onclick="processCSV()">Calculate</button>
 
-<div class="result" id="output"></div>
+<div class="result" id="summary"></div>
+<div id="tableContainer"></div>
 
 <script>
 function cleanNumber(value) {
@@ -60,7 +64,22 @@ function processCSV() {
             let totalPayout = 0;
             let totalMarkup = 0;
 
+            let tableHTML = `
+                <table>
+                <tr>
+                    <th style="text-align:left">Reservation</th>
+                    <th>Accommodation</th>
+                    <th>Markup</th>
+                    <th>True Base</th>
+                    <th>Management</th>
+                    <th>Cleaning</th>
+                    <th>Payout</th>
+                </tr>
+            `;
+
             data.forEach(row => {
+
+                const res = row["CONFIRMATION CODE"] || "";
                 const acc = cleanNumber(row["ACCOMMODATION FARE"]);
                 const markup = cleanNumber(row["MARKUP"]);
                 const cleaning = cleanNumber(row["CLEANING FARE"]);
@@ -74,9 +93,23 @@ function processCSV() {
                 totalCleaning += cleaning;
                 totalPayout += payout;
                 totalMarkup += markup;
+
+                tableHTML += `
+                    <tr>
+                        <td style="text-align:left">${res}</td>
+                        <td>$${acc.toFixed(2)}</td>
+                        <td>$${markup.toFixed(2)}</td>
+                        <td>$${trueBase.toFixed(2)}</td>
+                        <td>$${management.toFixed(2)}</td>
+                        <td>$${cleaning.toFixed(2)}</td>
+                        <td>$${payout.toFixed(2)}</td>
+                    </tr>
+                `;
             });
 
-            let resultHTML = `
+            tableHTML += "</table>";
+
+            let summaryHTML = `
                 <h3>Summary</h3>
                 Total True Accommodation: $${totalBase.toFixed(2)}<br>
                 Total Management: $${totalManagement.toFixed(2)}<br>
@@ -86,13 +119,14 @@ function processCSV() {
 
             if (ownerType === "direct") {
                 const draft = totalManagement + totalCleaning;
-                resultHTML += `<strong>Amount To Draft From Owner: $${draft.toFixed(2)}</strong>`;
+                summaryHTML += `<strong>Amount To Draft From Owner: $${draft.toFixed(2)}</strong>`;
             } else {
                 const ownerNet = totalPayout - totalManagement - totalCleaning;
-                resultHTML += `<strong>Amount To Pay Owner: $${ownerNet.toFixed(2)}</strong>`;
+                summaryHTML += `<strong>Amount To Pay Owner: $${ownerNet.toFixed(2)}</strong>`;
             }
 
-            document.getElementById("output").innerHTML = resultHTML;
+            document.getElementById("summary").innerHTML = summaryHTML;
+            document.getElementById("tableContainer").innerHTML = tableHTML;
         }
     });
 }

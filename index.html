@@ -1,41 +1,151 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Reservation Statement</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+
+<style>
+body { margin:0; font-family:Arial; background:#0f172a; color:#e5e7eb; }
+
+/* TOP BAR */
+.topbar {
+ background:#111827;
+ padding:15px;
+ display:flex;
+ justify-content:center;
+ gap:12px;
+ flex-wrap:wrap;
+ border-bottom:1px solid #1f2937;
+}
+
+.topbar select,
+.topbar input,
+.topbar button {
+ padding:7px 10px;
+ border:none;
+ border-radius:4px;
+}
+
+.topbar button {
+ background:#2563eb;
+ color:white;
+ font-weight:bold;
+ cursor:pointer;
+}
+
+/* CONTENT */
+.content {
+ max-width:1100px;
+ margin:auto;
+ padding:50px 20px;
+ text-align:center;
+}
+
+/* HEADER */
+.title { font-size:34px; }
+.period { color:#9ca3af; margin-top:5px; }
+.owner { font-size:42px; color:#facc15; margin-top:15px; }
+
+/* SUMMARY */
+.summary {
+ display:flex;
+ justify-content:center;
+ gap:60px;
+ margin:35px 0 50px;
+}
+
+.summary-box span {
+ display:block;
+ font-size:28px;
+ margin-top:6px;
+}
+
+/* TABLE */
+.property-section { text-align:left; margin-top:40px; }
+.property-title { font-size:20px; margin-bottom:10px; }
+
+table {
+ width:100%;
+ border-collapse:collapse;
+ background:#111827;
+}
+
+th, td {
+ padding:10px;
+ border:1px solid #1f2937;
+}
+
+th { background:#1f2937; text-align:center; }
+td { text-align:right; }
+td.left { text-align:left; }
+
+.total-row { background:#1f2937; font-weight:bold; }
+</style>
+</head>
+
+<body>
+
+<div class="topbar">
+<select id="owner">
+<option value="Eran">Eran</option>
+<option value="GHO">GHO</option>
+</select>
+
+<select id="month"></select>
+<select id="year"></select>
+
+<select id="percent">
+<option value="0.10">10%</option>
+<option value="0.12" selected>12%</option>
+<option value="0.15">15%</option>
+<option value="0.20">20%</option>
+</select>
+
+<select id="ownerType">
+<option value="pmc">PMC Holds Payout</option>
+<option value="direct">Owner Gets Paid Directly</option>
+</select>
+
+<input type="file" id="csvFile" accept=".csv">
+<button onclick="generate()">Run Statement</button>
+</div>
+
+<div id="output" class="content"></div>
+
 <script>
 
+/* Populate month/year */
 const monthSelect=document.getElementById("month");
 const yearSelect=document.getElementById("year");
 const now=new Date();
-const currentMonth=now.getMonth()+1;
-const currentYear=now.getFullYear();
 
 for(let m=1;m<=12;m++){
  let mm=m.toString().padStart(2,"0");
  let name=new Date(0,m-1).toLocaleString('default',{month:'long'});
  monthSelect.innerHTML+=`<option value="${mm}">${name}</option>`;
 }
-monthSelect.value=currentMonth.toString().padStart(2,"0");
+monthSelect.value=(now.getMonth()+1).toString().padStart(2,"0");
 
-for(let y=currentYear-3;y<=currentYear+3;y++){
+for(let y=now.getFullYear()-3;y<=now.getFullYear()+3;y++){
  yearSelect.innerHTML+=`<option value="${y}">${y}</option>`;
 }
-yearSelect.value=currentYear;
+yearSelect.value=now.getFullYear();
 
-function num(v){
- return parseFloat((v||"0").toString().replace(/[$,]/g,''))||0;
-}
-
+/* helpers */
+function num(v){ return parseFloat((v||"0").toString().replace(/[$,]/g,''))||0; }
 function stay(i,o){
  if(!i||!o) return "";
- let a=i.split("-");
- let b=o.split("-");
+ let a=i.split("-"), b=o.split("-");
  return a[1]+"/"+a[2]+" - "+b[1]+"/"+b[2];
 }
+function lastDay(year,month){ return new Date(year, month, 0).getDate(); }
 
-function lastDay(year,month){
- return new Date(year, month, 0).getDate();
-}
-
+/* main */
 function generate(){
 
-let file=document.getElementById("csvFile").files[0];
+const output=document.getElementById("output");
+const file=document.getElementById("csvFile").files[0];
+
 if(!file){ alert("Upload CSV first"); return; }
 
 let month=monthSelect.value;
@@ -48,56 +158,43 @@ let endDay=lastDay(year,month);
 Papa.parse(file,{
 header:true,
 skipEmptyLines:true,
-complete:function(result){
+complete:function(res){
 
-let rows=result.data;
+let rows=res.data;
 let grouped={};
 
-let totalTrue=0;
-let totalMgmt=0;
-let totalCleaning=0;
-let totalOwner=0;
-let totalDraft=0;
-let totalTax=0;
+let totalTrue=0, totalMgmt=0, totalCleaning=0, totalOwner=0, totalDraft=0, totalTax=0;
 
-/* GROUP ROWS */
-rows.forEach(function(r){
+/* filter & group */
+rows.forEach(r=>{
+ if(num(r["CANCELED TOTAL PAYOUT"])!==0) return;
+ if(!r["CHECK-IN DATE"]) return;
 
-if(num(r["CANCELED TOTAL PAYOUT"])!==0) return;
-if(!r["CHECK-IN DATE"]) return;
+ if(r["CHECK-IN DATE"].substring(5,7)!==month) return;
+ if(r["CHECK-IN DATE"].substring(0,4)!==year.toString()) return;
 
-let checkMonth=r["CHECK-IN DATE"].substring(5,7);
-let checkYear=r["CHECK-IN DATE"].substring(0,4);
-
-if(checkMonth!==month || checkYear!==year.toString()) return;
-
-let listing=r["LISTING'S NICKNAME"]||"Unknown";
-
-if(!grouped[listing]) grouped[listing]=[];
-grouped[listing].push(r);
-
+ let listing=r["LISTING'S NICKNAME"]||"Unknown";
+ if(!grouped[listing]) grouped[listing]=[];
+ grouped[listing].push(r);
 });
 
-/* HEADER */
+/* header */
 let html=`
 <div class="title">RESERVATION STATEMENT</div>
 <div class="period">
-${new Date(year,month-1).toLocaleString('default',{month:'long'})} 1 - 
+${new Date(year,month-1).toLocaleString('default',{month:'long'})} 1 -
 ${new Date(year,month-1).toLocaleString('default',{month:'long'})} ${endDay}, ${year}
 </div>
 <div class="owner">${owner}</div>
 `;
 
-/* TABLES */
+/* summary will be inserted after totals calculated */
 let tablesHTML="";
 
-Object.keys(grouped).forEach(function(listing){
+/* tables */
+Object.keys(grouped).forEach(listing=>{
 
-let propertyTrue=0;
-let propertyMgmt=0;
-let propertyCleaning=0;
-let propertyOwner=0;
-let propertyDraft=0;
+let pTrue=0, pMgmt=0, pCleaning=0, pOwner=0, pDraft=0;
 
 let table=`
 <div class="property-section">
@@ -109,41 +206,26 @@ let table=`
 <th>Stay</th>
 <th>True Accommodation</th>
 <th>PMC</th>
-${ownerType==="pmc"?"<th>Owner Payout</th>":"<th>Cleaning</th><th>Draft From Owner</th>"}
+${ownerType==="pmc"?"<th>Owner Payout</th>":"<th>Cleaning</th><th>Draft</th>"}
 </tr>
 `;
 
-grouped[listing].forEach(function(r){
+grouped[listing].forEach(r=>{
 
 let acc=num(r["ACCOMMODATION FARE"]);
 let markup=num(r["MARKUP"]);
 let cleaning=num(r["CLEANING FARE"]);
-let city=num(r["CITY TAX"]);
-let state=num(r["STATE TAX"]);
-let county=num(r["COUNTY TAX"]);
-let occ=num(r["OCCUPANCY TAX"]);
+let tax=num(r["CITY TAX"])+num(r["STATE TAX"])+num(r["COUNTY TAX"])+num(r["OCCUPANCY TAX"]);
 
 let trueAcc=acc-markup;
 let mgmt=trueAcc*percent;
 let ownerPay=trueAcc-mgmt;
 let draft=mgmt+cleaning;
 
-propertyTrue+=trueAcc;
-propertyMgmt+=mgmt;
-propertyCleaning+=cleaning;
-propertyOwner+=ownerPay;
-propertyDraft+=draft;
+pTrue+=trueAcc; pMgmt+=mgmt; pCleaning+=cleaning; pOwner+=ownerPay; pDraft+=draft;
 
-totalTrue+=trueAcc;
-totalMgmt+=mgmt;
-totalCleaning+=cleaning;
-totalTax+=city+state+county+occ;
-
-if(ownerType==="pmc"){
- totalOwner+=ownerPay;
-}else{
- totalDraft+=draft;
-}
+totalTrue+=trueAcc; totalMgmt+=mgmt; totalCleaning+=cleaning; totalTax+=tax;
+if(ownerType==="pmc") totalOwner+=ownerPay; else totalDraft+=draft;
 
 table+=`
 <tr>
@@ -161,21 +243,20 @@ ${ownerType==="pmc"
 table+=`
 <tr class="total-row">
 <td class="left">TOTAL</td><td></td><td></td>
-<td>$${propertyTrue.toFixed(2)}</td>
-<td>$${propertyMgmt.toFixed(2)}</td>
+<td>$${pTrue.toFixed(2)}</td>
+<td>$${pMgmt.toFixed(2)}</td>
 ${ownerType==="pmc"
- ? `<td>$${propertyOwner.toFixed(2)}</td>`
- : `<td>$${propertyCleaning.toFixed(2)}</td><td>$${propertyDraft.toFixed(2)}</td>`}
+ ? `<td>$${pOwner.toFixed(2)}</td>`
+ : `<td>$${pCleaning.toFixed(2)}</td><td>$${pDraft.toFixed(2)}</td>`}
 </tr>
 </table>
 </div>
 `;
 
 tablesHTML+=table;
-
 });
 
-/* SUMMARY */
+/* summary */
 let summary=`
 <div class="summary">
 <div class="summary-box">TRUE ACCOMMODATION<span>$${totalTrue.toFixed(2)}</span></div>
@@ -187,11 +268,13 @@ ${ownerType==="pmc"
 </div>
 `;
 
-document.getElementById("output").innerHTML = html + summary + tablesHTML;
+output.innerHTML = html + summary + tablesHTML;
 
 }
 });
 
 }
-
 </script>
+
+</body>
+</html>

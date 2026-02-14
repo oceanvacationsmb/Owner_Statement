@@ -17,7 +17,7 @@ body{margin:0;font-family:Arial;background:#0f172a;color:#e5e7eb}
 .content{max-width:1100px;margin:auto;padding:40px 20px;text-align:center}
 .notice{max-width:1100px;margin:15px auto 0;padding:10px 14px;border:1px solid #1f2937;border-radius:8px;background:#0b1220;color:#cbd5e1}
 .notice.error{border-color:#7f1d1d;color:#fecaca;background:#140b0b}
-.title{font-size:34px;letter-spacing:.5px}
+.title{font-size:34px}
 .period{color:#9ca3af;margin-top:6px}
 .owner{font-size:42px;color:#facc15;margin-top:14px}
 .meta{margin-top:8px;color:#cbd5e1;font-size:14px}
@@ -25,7 +25,7 @@ body{margin:0;font-family:Arial;background:#0f172a;color:#e5e7eb}
 .summary-box span{display:block;font-size:28px;margin-top:6px}
 .property-section{text-align:left;margin-top:34px}
 .property-title{font-size:20px;margin-bottom:10px}
-table{width:100%;border-collapse:collapse;background:#111827;border-radius:10px;overflow:hidden}
+table{width:100%;border-collapse:collapse;background:#111827}
 th,td{padding:10px;border:1px solid #1f2937}
 th{background:#1f2937;text-align:center}
 td{text-align:right}
@@ -46,21 +46,18 @@ th{background:#f1f5f9;color:#0f172a}
 <select id="owner" onchange="applyOwnerDefaults()"></select>
 <select id="month"></select>
 <select id="year"></select>
-
 <select id="percent" disabled></select>
 <select id="payType" disabled></select>
-
-<input type="file" id="fileInput" accept=".pdf,.csv,application/pdf,text/csv">
-
-<button id="runBtn" onclick="runStatement()">Run Statement</button>
+<input type="file" id="fileInput" accept=".pdf,.csv">
+<button onclick="runStatement()">Run Statement</button>
 <button class="pdf-btn" id="pdfBtn" onclick="downloadPDF()" disabled>Download Clean PDF</button>
 </div>
 
-<div id="notice" class="notice">Upload PDF or CSV. CSV is recommended for accurate tables.</div>
+<div id="notice" class="notice">Upload CSV for accurate tables.</div>
 <div id="output" class="content"></div>
 
 <script>
-/* ========= OWNER CONFIG (LOCKED) ========= */
+/* OWNERS */
 const owners={
 "ERAN":{percent:0.12,type:"draft"},
 "GHO":{percent:0.10,type:"payout"},
@@ -82,20 +79,19 @@ Object.keys(owners).forEach(o=> ownerSelect.innerHTML+=`<option value="${o}">${o
 
 function applyOwnerDefaults(){
 const o=ownerSelect.value;
-const pct=(owners[o].percent*100).toFixed(0)+"%";
-document.getElementById("percent").innerHTML=`<option>${pct}</option>`;
+document.getElementById("percent").innerHTML=`<option>${(owners[o].percent*100).toFixed(0)}%</option>`;
 document.getElementById("payType").innerHTML=`<option>${owners[o].type.toUpperCase()}</option>`;
 }
 applyOwnerDefaults();
 
-/* ========= MONTH/YEAR ========= */
+/* MONTH/YEAR */
 const monthSelect=document.getElementById("month");
 const yearSelect=document.getElementById("year");
 const now=new Date();
 
 for(let m=1;m<=12;m++){
-const mm=m.toString().padStart(2,"0");
-const name=new Date(0,m-1).toLocaleString('default',{month:'long'});
+let mm=m.toString().padStart(2,"0");
+let name=new Date(0,m-1).toLocaleString('default',{month:'long'});
 monthSelect.innerHTML+=`<option value="${mm}">${name}</option>`;
 }
 monthSelect.value=(now.getMonth()+1).toString().padStart(2,"0");
@@ -105,99 +101,49 @@ yearSelect.innerHTML+=`<option value="${y}">${y}</option>`;
 }
 yearSelect.value=now.getFullYear();
 
-/* ========= HELPERS ========= */
-function setNotice(msg,isError=false){
-const n=document.getElementById("notice");
-n.className="notice"+(isError?" error":"");
-n.textContent=msg;
-}
+/* HELPERS */
+function num(v){return parseFloat((v||"0").toString().replace(/[$,]/g,""))||0}
+function stay(i,o){if(!i||!o)return"";let a=i.split("-"),b=o.split("-");return a[1]+"/"+a[2]+" - "+b[1]+"/"+b[2]}
+function lastDay(y,m){return new Date(y,m,0).getDate()}
+function money(x){return "$"+(Number(x)||0).toFixed(2)}
+function hasTax(r){return num(r["CITY TAX"])+num(r["STATE TAX"])+num(r["COUNTY TAX"])+num(r["OCCUPANCY TAX"])>0}
 
-function num(v){
-return parseFloat((v||"0").toString().replace(/[$,]/g,""))||0;
-}
-
-function stay(i,o){
-if(!i||!o) return "";
-const a=i.split("-"), b=o.split("-");
-return a[1]+"/"+a[2]+" - "+b[1]+"/"+b[2];
-}
-
-function lastDay(year,month){
-return new Date(year,month,0).getDate();
-}
-
-function money(x){ return "$"+(Number(x)||0).toFixed(2); }
-
-function hasAnyTax(r){
-const t =
-num(r["CITY TAX"]) +
-num(r["STATE TAX"]) +
-num(r["COUNTY TAX"]) +
-num(r["OCCUPANCY TAX"]);
-return t>0.000001;
-}
-
-/* ========= CORE (CSV ONLY FOR TABLES) ========= */
+/* MAIN */
 async function runStatement(){
+
 const file=document.getElementById("fileInput").files[0];
-if(!file){ setNotice("Choose a PDF or CSV file first.",true); return; }
+if(!file){alert("Choose CSV");return;}
 
-const lower=(file.name||"").toLowerCase();
-const isCSV = lower.endsWith(".csv") || (file.type||"").includes("csv");
-const isPDF = lower.endsWith(".pdf") || (file.type||"").includes("pdf");
-
-if(isPDF){
-document.getElementById("output").innerHTML="";
-document.getElementById("pdfBtn").disabled=true;
-setNotice("PDF upload detected. This tool builds accurate tables from CSV. Export the same Guesty report as CSV and upload it. (PDF export button will work after you run a CSV statement.)",true);
+if(!file.name.toLowerCase().endsWith(".csv")){
+alert("Use CSV for accurate statement.");
 return;
 }
-
-if(!isCSV){
-setNotice("Unsupported file type. Upload CSV (recommended) or PDF. For tables, use CSV.",true);
-return;
-}
-
-setNotice("CSV loaded. Building statement…");
 
 const text=await file.text();
-const parsed=Papa.parse(text,{header:true,skipEmptyLines:true});
-const rows=parsed.data || [];
+const rows=Papa.parse(text,{header:true,skipEmptyLines:true}).data;
 
 const month=monthSelect.value;
 const year=yearSelect.value;
 const owner=ownerSelect.value;
 const percent=owners[owner].percent;
-const payType=owners[owner].type; // payout or draft
+const payType=owners[owner].type;
 const endDay=lastDay(year,month);
 
+let totalAcc=0,totalMgmt=0,totalOwner=0,totalDraft=0,totalCleaning=0,totalTaxPayout=0;
+let tablesHTML="";
+
+/* GROUP BY LISTING */
 const grouped={};
-
 rows.forEach(r=>{
-if(!r) return;
-if(num(r["CANCELED TOTAL PAYOUT"])!==0) return;
-if(!r["CHECK-IN DATE"]) return;
-
-if(r["CHECK-IN DATE"].substring(5,7)!==month) return;
-if(r["CHECK-IN DATE"].substring(0,4)!==String(year)) return;
-
+if(!r["CHECK-IN DATE"])return;
+if(r["CHECK-IN DATE"].substring(5,7)!==month)return;
+if(r["CHECK-IN DATE"].substring(0,4)!==String(year))return;
 const listing=r["LISTING'S NICKNAME"]||"Unknown";
-if(!grouped[listing]) grouped[listing]=[];
+if(!grouped[listing])grouped[listing]=[];
 grouped[listing].push(r);
 });
 
-let totalAcc=0,totalMgmt=0,totalOwner=0,totalDraft=0,totalCleaning=0,totalReportablePayout=0;
-
-let statementHTML=`
-<div id="statement">
-<div class="title">RESERVATION STATEMENT</div>
-<div class="period">${new Date(year,month-1).toLocaleString('default',{month:'long'})} 1 - ${new Date(year,month-1).toLocaleString('default',{month:'long'})} ${endDay}, ${year}</div>
-<div class="owner">${owner}</div>
-<div class="meta">Rate: ${(percent*100).toFixed(0)}% · Mode: ${payType.toUpperCase()}</div>
-`;
-
-let tablesHTML="";
-
+/* BUILD TABLES */
 Object.keys(grouped).forEach(listing=>{
 let pAcc=0,pMgmt=0,pOwner=0,pDraft=0,pCleaning=0;
 
@@ -211,101 +157,76 @@ let table=`
 <th>Stay</th>
 <th>Accommodation</th>
 <th>PMC</th>
-${payType==="payout" ? "<th>Owner Payout</th>" : "<th>Cleaning</th><th>Draft</th>"}
+${payType==="payout"?"<th>Owner Payout</th>":"<th>Cleaning</th><th>Draft</th>"}
 </tr>
 `;
 
 grouped[listing].forEach(r=>{
-const accommodation = num(r["ACCOMMODATION FARE"]) - num(r["MARKUP"]); // your “true accommodation”
-const cleaning = num(r["CLEANING FARE"]);
-const payout = num(r["TOTAL PAYOUT"]);
-const mgmt = accommodation * percent;
+let acc=num(r["ACCOMMODATION FARE"])-num(r["MARKUP"]);
+let cleaning=num(r["CLEANING FARE"]);
+let payout=num(r["TOTAL PAYOUT"]);
+let mgmt=acc*percent;
+let ownerPay=acc-mgmt;
+let draft=mgmt+cleaning;
 
-const ownerPayout = accommodation - mgmt;
-const draft = mgmt + cleaning;
+if(hasTax(r)) totalTaxPayout+=payout;
 
-if(hasAnyTax(r)) totalReportablePayout += payout;
+pAcc+=acc;pMgmt+=mgmt;pOwner+=ownerPay;pDraft+=draft;pCleaning+=cleaning;
+totalAcc+=acc;totalMgmt+=mgmt;totalCleaning+=cleaning;
+if(payType==="payout") totalOwner+=ownerPay; else totalDraft+=draft;
 
-pAcc += accommodation;
-pMgmt += mgmt;
-pOwner += ownerPayout;
-pDraft += draft;
-pCleaning += cleaning;
-
-totalAcc += accommodation;
-totalMgmt += mgmt;
-totalCleaning += cleaning;
-
-if(payType==="payout") totalOwner += ownerPayout;
-else totalDraft += draft;
-
-table += `
+table+=`
 <tr>
 <td class="left">${r["CONFIRMATION CODE"]||""}</td>
 <td class="left">${r["PLATFORM"]||""}</td>
 <td>${stay(r["CHECK-IN DATE"],r["CHECK-OUT DATE"])}</td>
-<td>${money(accommodation)}</td>
+<td>${money(acc)}</td>
 <td>${money(mgmt)}</td>
-${payType==="payout"
-? `<td>${money(ownerPayout)}</td>`
-: `<td>${money(cleaning)}</td><td>${money(draft)}</td>`}
-</tr>
-`;
+${payType==="payout"?`<td>${money(ownerPay)}</td>`:`<td>${money(cleaning)}</td><td>${money(draft)}</td>`}
+</tr>`;
 });
 
-table += `
+table+=`
 <tr class="total-row">
 <td class="left">TOTAL</td><td></td><td></td>
 <td>${money(pAcc)}</td>
 <td>${money(pMgmt)}</td>
-${payType==="payout"
-? `<td>${money(pOwner)}</td>`
-: `<td>${money(pCleaning)}</td><td>${money(pDraft)}</td>`}
+${payType==="payout"?`<td>${money(pOwner)}</td>`:`<td>${money(pCleaning)}</td><td>${money(pDraft)}</td>`}
 </tr>
 </table>
-</div>
-`;
-
-tablesHTML += table;
+</div>`;
+tablesHTML+=table;
 });
 
-/* SUMMARY (ON TOP, UNDER OWNER NAME) */
-const summaryHTML = `
+/* SUMMARY */
+let summary=`
 <div class="summary">
 <div class="summary-box">ACCOMMODATION<span>${money(totalAcc)}</span></div>
 <div class="summary-box">PMC COMMISSION<span>${money(totalMgmt)}</span></div>
-<div class="summary-box">REPORTABLE TAX PAYOUT<span>${money(totalReportablePayout)}</span></div>
+<div class="summary-box">EXPENSES<span>${money(totalCleaning)}</span></div>
+${payType==="draft"?`<div class="summary-box">REPORTABLE TAX PAYOUT<span>${money(totalTaxPayout)}</span></div>`:""}
 ${payType==="payout"
-? `<div class="summary-box">OWNER PAYOUT<span>${money(totalOwner)}</span></div>`
-: `<div class="summary-box">DRAFT FROM OWNER<span>${money(totalDraft)}</span></div>`}
-</div>
-`;
+?`<div class="summary-box">OWNER PAYOUT<span>${money(totalOwner)}</span></div>`
+:`<div class="summary-box">DRAFT FROM OWNER<span>${money(totalDraft)}</span></div>`}
+</div>`;
 
-statementHTML += summaryHTML + tablesHTML + "</div>";
+/* RENDER */
+document.getElementById("output").innerHTML=`
+<div id="statement">
+<div class="title">RESERVATION STATEMENT</div>
+<div class="period">${new Date(year,month-1).toLocaleString('default',{month:'long'})} 1 - ${endDay}, ${year}</div>
+<div class="owner">${owner}</div>
+${summary}
+${tablesHTML}
+</div>`;
 
-document.getElementById("output").innerHTML = statementHTML;
 document.getElementById("pdfBtn").disabled=false;
-
-setNotice("Statement ready. Use Download Clean PDF to save and send to owner.");
 }
 
-/* ========= PDF EXPORT ========= */
+/* PDF */
 function downloadPDF(){
 const el=document.getElementById("statement");
-if(!el){ setNotice("Run statement first (CSV).",true); return; }
-
-const owner=ownerSelect.value.replace(/[^\w\- ]+/g,"").trim();
-const year=yearSelect.value;
-const monthName=monthSelect.options[monthSelect.selectedIndex].text.replace(/\s+/g,"_");
-const filename=`Reservation_Statement_${owner}_${monthName}_${year}.pdf`;
-
-html2pdf().set({
-margin:10,
-filename:filename,
-image:{type:"jpeg",quality:0.98},
-html2canvas:{scale:2,useCORS:true},
-jsPDF:{unit:"mm",format:"a4",orientation:"portrait"}
-}).from(el).save();
+html2pdf().from(el).save("Reservation_Statement.pdf");
 }
 </script>
 

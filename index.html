@@ -1,177 +1,171 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Owner Draft Calculator</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-    <style>
-        body { font-family: Arial; padding: 40px; background: #f2f4f7; }
-        h1 { color: #222; }
-        input, select { padding: 10px; margin: 10px 0; width: 400px; }
-        button { padding: 12px 25px; background: #2c7be5; color: white; border: none; cursor: pointer; font-size: 16px; }
-        table { width: 100%; margin-top: 30px; border-collapse: collapse; background: white; font-size: 13px; }
-        th, td { padding: 6px; border: 1px solid #ddd; text-align: right; }
-        th { background: #f0f0f0; }
-        td.left { text-align: left; }
-        .section { margin-top: 30px; padding: 25px; background: white; border-radius: 10px; }
-    </style>
+<title>PMC Owner Report</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<style>
+body { font-family: Arial; padding:40px; background:#f2f4f7; }
+input { padding:10px; margin:10px 0; width:300px; }
+button { padding:10px 20px; background:#2c7be5; color:white; border:none; }
+table { width:100%; border-collapse:collapse; margin-top:30px; background:white; font-size:13px; }
+th,td { border:1px solid #ddd; padding:6px; text-align:right; }
+th { background:#f0f0f0; }
+td.left { text-align:left; }
+.section { background:white; padding:20px; margin-top:30px; }
+</style>
 </head>
+
 <body>
 
-<h1>Owner Draft Recalculation Tool</h1>
+<h2>PMC Hold Payout Report</h2>
 
-<label>Upload Guesty CSV:</label><br>
 <input type="file" id="csvFile" accept=".csv"><br>
-
-<label>Owner Management %:</label><br>
+<label>Management %</label><br>
 <input type="number" id="percent" value="12"><br>
-
-<button onclick="processCSV()">Calculate</button>
+<button onclick="run()">Calculate</button>
 
 <div id="summary" class="section"></div>
-<div id="taxSection" class="section"></div>
-<div id="pmcSection" class="section"></div>
-<div id="tableContainer"></div>
+<div id="taxes" class="section"></div>
+<div id="pmc" class="section"></div>
+<div id="table"></div>
 
 <script>
 
-function cleanNumber(value) {
-    if (!value) return 0;
-    return parseFloat(value.toString().replace(/[$,]/g, '')) || 0;
+function n(v){ return parseFloat((v||"0").toString().replace(/[$,]/g,''))||0; }
+
+function formatStay(inDate,outDate){
+ if(!inDate && !outDate) return "";
+ let i = inDate ? inDate.split("-") : [];
+ let o = outDate ? outDate.split("-") : [];
+ if(i.length===3 && o.length===3){
+   return i[1]+"/"+i[2]+" - "+o[1]+"/"+o[2];
+ }
+ return "";
 }
 
-function formatDate(dateStr) {
-    if (!dateStr) return "";
-    const parts = dateStr.split("-");
-    if (parts.length !== 3) return "";
-    return parts[1] + "/" + parts[2];
+function run(){
+
+let file = document.getElementById("csvFile").files[0];
+let percent = parseFloat(document.getElementById("percent").value)/100;
+
+if(!file){ alert("Upload CSV"); return; }
+
+Papa.parse(file,{
+header:true,
+skipEmptyLines:true,
+complete:function(res){
+
+let data = res.data;
+
+let totalTrue=0;
+let totalMgmt=0;
+let totalCleaning=0;
+let totalPayout=0;
+
+let totalCity=0;
+let totalState=0;
+let totalCounty=0;
+let totalOcc=0;
+
+let showStay=false;
+let showCity=false;
+let showState=false;
+let showCounty=false;
+let showOcc=false;
+
+data.forEach(r=>{
+ if(r["CHECK-IN DATE"]||r["CHECK-OUT DATE"]) showStay=true;
+ if(n(r["CITY TAX"])>0) showCity=true;
+ if(n(r["STATE TAX"])>0) showState=true;
+ if(n(r["COUNTY TAX"])>0) showCounty=true;
+ if(n(r["OCCUPANCY TAX"])>0) showOcc=true;
+});
+
+let html="<table><tr>";
+html+="<th>Listing</th>";
+html+="<th>Confirmation</th>";
+html+="<th>Platform</th>";
+if(showStay) html+="<th>Stay</th>";
+html+="<th>Accommodation</th>";
+html+="<th>Markup</th>";
+html+="<th>True Accommodation</th>";
+html+="<th>Cleaning</th>";
+if(showCity) html+="<th>City Tax</th>";
+if(showState) html+="<th>State Tax</th>";
+if(showCounty) html+="<th>County Tax</th>";
+if(showOcc) html+="<th>Occupancy Tax</th>";
+html+="</tr>";
+
+data.forEach(r=>{
+
+if(n(r["CANCELED TOTAL PAYOUT"])!==0) return;
+
+let acc=n(r["ACCOMMODATION FARE"]);
+let adj=n(r["ACCOMMODATION FARE ADJUSTMENT"]);
+let markup=n(r["MARKUP"]);
+let cleaning=n(r["CLEANING FARE"]);
+let payout=n(r["TOTAL PAYOUT"]);
+
+let city=n(r["CITY TAX"]);
+let state=n(r["STATE TAX"]);
+let county=n(r["COUNTY TAX"]);
+let occ=n(r["OCCUPANCY TAX"]);
+
+let trueAcc=(acc+adj)-markup;
+let mgmt=trueAcc*percent;
+
+totalTrue+=trueAcc;
+totalMgmt+=mgmt;
+totalCleaning+=cleaning;
+totalPayout+=payout;
+
+totalCity+=city;
+totalState+=state;
+totalCounty+=county;
+totalOcc+=occ;
+
+html+="<tr>";
+html+="<td class='left'>"+(r["LISTING'S NICKNAME"]||"")+"</td>";
+html+="<td class='left'>"+(r["CONFIRMATION CODE"]||"")+"</td>";
+html+="<td class='left'>"+(r["PLATFORM"]||"")+"</td>";
+if(showStay) html+="<td>"+formatStay(r["CHECK-IN DATE"],r["CHECK-OUT DATE"])+"</td>";
+html+="<td>$"+acc.toFixed(2)+"</td>";
+html+="<td>$"+markup.toFixed(2)+"</td>";
+html+="<td>$"+trueAcc.toFixed(2)+"</td>";
+html+="<td>$"+cleaning.toFixed(2)+"</td>";
+if(showCity) html+="<td>$"+city.toFixed(2)+"</td>";
+if(showState) html+="<td>$"+state.toFixed(2)+"</td>";
+if(showCounty) html+="<td>$"+county.toFixed(2)+"</td>";
+if(showOcc) html+="<td>$"+occ.toFixed(2)+"</td>";
+html+="</tr>";
+
+});
+
+html+="</table>";
+
+document.getElementById("summary").innerHTML=
+"<h3>Summary</h3>"+
+"Total True Accommodation: $"+totalTrue.toFixed(2)+"<br>"+
+"<strong>Amount To Pay Owner: $"+(totalPayout-totalMgmt-totalCleaning).toFixed(2)+"</strong>";
+
+document.getElementById("taxes").innerHTML=
+"<h3>Taxes</h3>"+
+(showCity?"City Tax: $"+totalCity.toFixed(2)+"<br>":"")+
+(showState?"State Tax: $"+totalState.toFixed(2)+"<br>":"")+
+(showCounty?"County Tax: $"+totalCounty.toFixed(2)+"<br>":"")+
+(showOcc?"Occupancy Tax: $"+totalOcc.toFixed(2):"");
+
+document.getElementById("pmc").innerHTML=
+"<h3>PMC Transfer</h3>"+
+"Total Management Commission: $"+totalMgmt.toFixed(2)+"<br>"+
+"Total Amount To Report Taxes (Total Payout): $"+totalPayout.toFixed(2);
+
+document.getElementById("table").innerHTML=html;
+
 }
+});
 
-function processCSV() {
-
-    const file = document.getElementById('csvFile').files[0];
-    const percent = parseFloat(document.getElementById('percent').value) / 100;
-
-    if (!file) {
-        alert("Upload CSV first");
-        return;
-    }
-
-    Papa.parse(file, {
-        header: true,
-        skipEmptyLines: true,
-        complete: function(results) {
-
-            const data = results.data;
-
-            let totalTrueBase = 0;
-            let totalManagement = 0;
-            let totalCleaning = 0;
-            let totalPayout = 0;
-
-            let totalCityTax = 0;
-            let totalStateTax = 0;
-            let totalCountyTax = 0;
-            let totalOccupancyTax = 0;
-
-            let hasDate = false;
-
-            data.forEach(row => {
-                if (row["CHECK-IN DATE"] || row["CHECK-OUT DATE"]) {
-                    hasDate = true;
-                }
-            });
-
-            let tableHTML = "<table><tr>";
-            tableHTML += "<th>Listing</th>";
-            tableHTML += "<th>Confirmation</th>";
-            tableHTML += "<th>Platform</th>";
-            if (hasDate) tableHTML += "<th>Stay</th>";
-            tableHTML += "<th>Accommodation</th>";
-            tableHTML += "<th>Markup</th>";
-            tableHTML += "<th>True Accommodation</th>";
-            tableHTML += "<th>Cleaning</th>";
-            tableHTML += "<th>City Tax</th>";
-            tableHTML += "<th>State Tax</th>";
-            tableHTML += "<th>County Tax</th>";
-            tableHTML += "<th>Occupancy Tax</th>";
-            tableHTML += "</tr>";
-
-            data.forEach(row => {
-
-                if (cleanNumber(row["CANCELED TOTAL PAYOUT"]) !== 0) return;
-
-                const acc = cleanNumber(row["ACCOMMODATION FARE"]);
-                const adjustment = cleanNumber(row["ACCOMMODATION FARE ADJUSTMENT"]);
-                const markup = cleanNumber(row["MARKUP"]);
-                const cleaning = cleanNumber(row["CLEANING FARE"]);
-                const payout = cleanNumber(row["TOTAL PAYOUT"]);
-
-                const cityTax = cleanNumber(row["CITY TAX"]);
-                const stateTax = cleanNumber(row["STATE TAX"]);
-                const countyTax = cleanNumber(row["COUNTY TAX"]);
-                const occupancyTax = cleanNumber(row["OCCUPANCY TAX"]);
-
-                const trueBase = (acc + adjustment) - markup;
-                const management = trueBase * percent;
-
-                totalTrueBase += trueBase;
-                totalManagement += management;
-                totalCleaning += cleaning;
-                totalPayout += payout;
-
-                totalCityTax += cityTax;
-                totalStateTax += stateTax;
-                totalCountyTax += countyTax;
-                totalOccupancyTax += occupancyTax;
-
-                tableHTML += "<tr>";
-                tableHTML += "<td class='left'>" + (row["LISTING'S NICKNAME"] || "") + "</td>";
-                tableHTML += "<td class='left'>" + (row["CONFIRMATION CODE"] || "") + "</td>";
-                tableHTML += "<td class='left'>" + (row["PLATFORM"] || "") + "</td>";
-
-                if (hasDate) {
-                    const stay = formatDate(row["CHECK-IN DATE"]) + " - " + formatDate(row["CHECK-OUT DATE"]);
-                    tableHTML += "<td>" + stay + "</td>";
-                }
-
-                tableHTML += "<td>$" + acc.toFixed(2) + "</td>";
-                tableHTML += "<td>$" + markup.toFixed(2) + "</td>";
-                tableHTML += "<td>$" + trueBase.toFixed(2) + "</td>";
-                tableHTML += "<td>$" + cleaning.toFixed(2) + "</td>";
-                tableHTML += "<td>$" + cityTax.toFixed(2) + "</td>";
-                tableHTML += "<td>$" + stateTax.toFixed(2) + "</td>";
-                tableHTML += "<td>$" + countyTax.toFixed(2) + "</td>";
-                tableHTML += "<td>$" + occupancyTax.toFixed(2) + "</td>";
-                tableHTML += "</tr>";
-            });
-
-            tableHTML += "</table>";
-
-            // SUMMARY
-            let summaryHTML = "<h3>Summary</h3>";
-            summaryHTML += "Total True Accommodation: $" + totalTrueBase.toFixed(2) + "<br>";
-            summaryHTML += "<strong>Amount To Pay Owner: $" + (totalPayout - totalManagement - totalCleaning).toFixed(2) + "</strong>";
-
-            // TAX SECTION
-            let taxHTML = "<h3>Taxes</h3>";
-            taxHTML += "Total City Tax: $" + totalCityTax.toFixed(2) + "<br>";
-            taxHTML += "Total State Tax: $" + totalStateTax.toFixed(2) + "<br>";
-            taxHTML += "Total County Tax: $" + totalCountyTax.toFixed(2) + "<br>";
-            taxHTML += "Total Occupancy Tax: $" + totalOccupancyTax.toFixed(2);
-
-            // PMC TRANSFER
-            let pmcHTML = "<h3>PMC Transfer</h3>";
-            pmcHTML += "Total Management Commission: $" + totalManagement.toFixed(2) + "<br>";
-            pmcHTML += "Total Amount To Report Taxes (Total Payout): $" + totalPayout.toFixed(2);
-
-            document.getElementById("summary").innerHTML = summaryHTML;
-            document.getElementById("taxSection").innerHTML = taxHTML;
-            document.getElementById("pmcSection").innerHTML = pmcHTML;
-            document.getElementById("tableContainer").innerHTML = tableHTML;
-        }
-    });
 }
-
 </script>
 
 </body>

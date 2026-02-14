@@ -3,50 +3,64 @@
 <head>
 <title>Reservation Statement</title>
 
-<!-- CSV parser -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-
-<!-- PDF reader -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-
-<!-- PDF export -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
 <style>
 body{margin:0;font-family:Arial;background:#0f172a;color:#e5e7eb}
 .topbar{background:#111827;padding:15px;display:flex;justify-content:center;gap:12px;flex-wrap:wrap;border-bottom:1px solid #1f2937}
-.topbar select,.topbar input,.topbar button{padding:7px 10px;border:none;border-radius:4px}
+.topbar select,.topbar input,.topbar button{padding:7px 10px;border:none;border-radius:6px}
 .topbar button{background:#2563eb;color:white;font-weight:bold;cursor:pointer}
-.content{max-width:1100px;margin:auto;padding:50px 20px;text-align:center}
-.title{font-size:34px}
-.period{color:#9ca3af;margin-top:5px}
-.owner{font-size:42px;color:#facc15;margin-top:15px}
-.summary{display:flex;justify-content:center;gap:60px;margin:35px 0 50px;flex-wrap:wrap}
-.summary-box span{display:block;font-size:28px;margin-top:6px}
+.topbar button:disabled{opacity:.5;cursor:not-allowed}
+.topbar select:disabled{background:#374151;color:#cbd5e1}
 .pdf-btn{background:#16a34a!important}
+.content{max-width:1100px;margin:auto;padding:40px 20px;text-align:center}
+.notice{max-width:1100px;margin:15px auto 0;padding:10px 14px;border:1px solid #1f2937;border-radius:8px;background:#0b1220;color:#cbd5e1}
+.notice.error{border-color:#7f1d1d;color:#fecaca;background:#140b0b}
+.title{font-size:34px;letter-spacing:.5px}
+.period{color:#9ca3af;margin-top:6px}
+.owner{font-size:42px;color:#facc15;margin-top:14px}
+.meta{margin-top:8px;color:#cbd5e1;font-size:14px}
+.summary{display:flex;justify-content:center;gap:60px;margin:30px 0 40px;flex-wrap:wrap}
+.summary-box span{display:block;font-size:28px;margin-top:6px}
+.property-section{text-align:left;margin-top:34px}
+.property-title{font-size:20px;margin-bottom:10px}
+table{width:100%;border-collapse:collapse;background:#111827;border-radius:10px;overflow:hidden}
+th,td{padding:10px;border:1px solid #1f2937}
+th{background:#1f2937;text-align:center}
+td{text-align:right}
+td.left{text-align:left}
+.total-row{background:#1f2937;font-weight:bold}
+@media print{
+.topbar,.notice{display:none}
+body{background:white;color:black}
+table{background:white}
+th{background:#f1f5f9;color:#0f172a}
+}
 </style>
 </head>
 
 <body>
 
 <div class="topbar">
-
-<select id="owner"></select>
+<select id="owner" onchange="applyOwnerDefaults()"></select>
 <select id="month"></select>
 <select id="year"></select>
 
-<!-- DEFAULT PDF FIRST -->
-<input type="file" id="fileInput" accept=".pdf,.csv">
+<select id="percent" disabled></select>
+<select id="payType" disabled></select>
 
-<button onclick="generate()">Run Statement</button>
-<button class="pdf-btn" onclick="downloadPDF()">Download PDF</button>
+<input type="file" id="fileInput" accept=".pdf,.csv,application/pdf,text/csv">
 
+<button id="runBtn" onclick="runStatement()">Run Statement</button>
+<button class="pdf-btn" id="pdfBtn" onclick="downloadPDF()" disabled>Download Clean PDF</button>
 </div>
 
+<div id="notice" class="notice">Upload PDF or CSV. CSV is recommended for accurate tables.</div>
 <div id="output" class="content"></div>
 
 <script>
-/* OWNERS */
+/* ========= OWNER CONFIG (LOCKED) ========= */
 const owners={
 "ERAN":{percent:0.12,type:"draft"},
 "GHO":{percent:0.10,type:"payout"},
@@ -63,20 +77,25 @@ const owners={
 "214-2S 2nd Ave S. North Myrtle Beach":{percent:0.12,type:"payout"}
 };
 
-/* LOAD OWNER DROPDOWN */
 const ownerSelect=document.getElementById("owner");
-Object.keys(owners).forEach(o=>{
-ownerSelect.innerHTML+=`<option value="${o}">${o}</option>`;
-});
+Object.keys(owners).forEach(o=> ownerSelect.innerHTML+=`<option value="${o}">${o}</option>`);
 
-/* MONTH/YEAR */
+function applyOwnerDefaults(){
+const o=ownerSelect.value;
+const pct=(owners[o].percent*100).toFixed(0)+"%";
+document.getElementById("percent").innerHTML=`<option>${pct}</option>`;
+document.getElementById("payType").innerHTML=`<option>${owners[o].type.toUpperCase()}</option>`;
+}
+applyOwnerDefaults();
+
+/* ========= MONTH/YEAR ========= */
 const monthSelect=document.getElementById("month");
 const yearSelect=document.getElementById("year");
 const now=new Date();
 
 for(let m=1;m<=12;m++){
-let mm=m.toString().padStart(2,"0");
-let name=new Date(0,m-1).toLocaleString('default',{month:'long'});
+const mm=m.toString().padStart(2,"0");
+const name=new Date(0,m-1).toLocaleString('default',{month:'long'});
 monthSelect.innerHTML+=`<option value="${mm}">${name}</option>`;
 }
 monthSelect.value=(now.getMonth()+1).toString().padStart(2,"0");
@@ -86,112 +105,207 @@ yearSelect.innerHTML+=`<option value="${y}">${y}</option>`;
 }
 yearSelect.value=now.getFullYear();
 
-/* HELPERS */
-function num(v){return parseFloat((v||"0").toString().replace(/[$,]/g,''))||0}
-function lastDay(year,month){return new Date(year,month,0).getDate()}
-
-/* MAIN */
-async function generate(){
-
-const file=document.getElementById("fileInput").files[0];
-if(!file){alert("Choose PDF or CSV file");return;}
-
-let month=monthSelect.value;
-let year=yearSelect.value;
-let owner=ownerSelect.value;
-let percent=owners[owner].percent;
-let ownerType=owners[owner].type;
-let endDay=lastDay(year,month);
-
-let rows=[];
-
-/* ===== DETECT FILE TYPE ===== */
-if(file.name.toLowerCase().endsWith(".csv")){
-
-const text=await file.text();
-rows=Papa.parse(text,{header:true,skipEmptyLines:true}).data;
-
-}else if(file.name.toLowerCase().endsWith(".pdf")){
-
-const pdf=await pdfjsLib.getDocument(await file.arrayBuffer()).promise;
-let textContent="";
-
-for(let i=1;i<=pdf.numPages;i++){
-const page=await pdf.getPage(i);
-const content=await page.getTextContent();
-textContent+=content.items.map(t=>t.str).join(" ")+"\n";
+/* ========= HELPERS ========= */
+function setNotice(msg,isError=false){
+const n=document.getElementById("notice");
+n.className="notice"+(isError?" error":"");
+n.textContent=msg;
 }
 
-/* SIMPLE PARSE FROM PDF TEXT (basic numbers extraction) */
-const matches=textContent.match(/\$?\d+\.\d{2}/g)||[];
-
-rows=matches.map(v=>({value:num(v)})); // simplified for now
+function num(v){
+return parseFloat((v||"0").toString().replace(/[$,]/g,""))||0;
 }
 
-/* ===== CALCULATIONS ===== */
-let totalAcc=0,totalMgmt=0,totalOwner=0,totalDraft=0,totalReportTax=0;
+function stay(i,o){
+if(!i||!o) return "";
+const a=i.split("-"), b=o.split("-");
+return a[1]+"/"+a[2]+" - "+b[1]+"/"+b[2];
+}
 
-rows.forEach(r=>{
-let acc=num(r["ACCOMMODATION FARE"]||r.value||0);
-let markup=num(r["MARKUP"]);
-let cleaning=num(r["CLEANING FARE"]);
-let payout=num(r["TOTAL PAYOUT"]);
+function lastDay(year,month){
+return new Date(year,month,0).getDate();
+}
 
-let taxCollected =
+function money(x){ return "$"+(Number(x)||0).toFixed(2); }
+
+function hasAnyTax(r){
+const t =
 num(r["CITY TAX"]) +
 num(r["STATE TAX"]) +
 num(r["COUNTY TAX"]) +
 num(r["OCCUPANCY TAX"]);
+return t>0.000001;
+}
 
-acc=acc-markup;
+/* ========= CORE (CSV ONLY FOR TABLES) ========= */
+async function runStatement(){
+const file=document.getElementById("fileInput").files[0];
+if(!file){ setNotice("Choose a PDF or CSV file first.",true); return; }
 
-let mgmt=acc*percent;
-let ownerPay=acc-mgmt;
-let draft=mgmt+cleaning;
+const lower=(file.name||"").toLowerCase();
+const isCSV = lower.endsWith(".csv") || (file.type||"").includes("csv");
+const isPDF = lower.endsWith(".pdf") || (file.type||"").includes("pdf");
 
-if(taxCollected>0) totalReportTax+=payout;
+if(isPDF){
+document.getElementById("output").innerHTML="";
+document.getElementById("pdfBtn").disabled=true;
+setNotice("PDF upload detected. This tool builds accurate tables from CSV. Export the same Guesty report as CSV and upload it. (PDF export button will work after you run a CSV statement.)",true);
+return;
+}
 
-totalAcc+=acc;
-totalMgmt+=mgmt;
-if(ownerType==="payout") totalOwner+=ownerPay;
-else totalDraft+=draft;
+if(!isCSV){
+setNotice("Unsupported file type. Upload CSV (recommended) or PDF. For tables, use CSV.",true);
+return;
+}
+
+setNotice("CSV loaded. Building statement…");
+
+const text=await file.text();
+const parsed=Papa.parse(text,{header:true,skipEmptyLines:true});
+const rows=parsed.data || [];
+
+const month=monthSelect.value;
+const year=yearSelect.value;
+const owner=ownerSelect.value;
+const percent=owners[owner].percent;
+const payType=owners[owner].type; // payout or draft
+const endDay=lastDay(year,month);
+
+const grouped={};
+
+rows.forEach(r=>{
+if(!r) return;
+if(num(r["CANCELED TOTAL PAYOUT"])!==0) return;
+if(!r["CHECK-IN DATE"]) return;
+
+if(r["CHECK-IN DATE"].substring(5,7)!==month) return;
+if(r["CHECK-IN DATE"].substring(0,4)!==String(year)) return;
+
+const listing=r["LISTING'S NICKNAME"]||"Unknown";
+if(!grouped[listing]) grouped[listing]=[];
+grouped[listing].push(r);
 });
 
-/* ===== RENDER ===== */
-let html=`
+let totalAcc=0,totalMgmt=0,totalOwner=0,totalDraft=0,totalCleaning=0,totalReportablePayout=0;
+
+let statementHTML=`
 <div id="statement">
 <div class="title">RESERVATION STATEMENT</div>
-<div class="period">
-${new Date(year,month-1).toLocaleString('default',{month:'long'})} 1 -
-${new Date(year,month-1).toLocaleString('default',{month:'long'})} ${endDay}, ${year}
-</div>
+<div class="period">${new Date(year,month-1).toLocaleString('default',{month:'long'})} 1 - ${new Date(year,month-1).toLocaleString('default',{month:'long'})} ${endDay}, ${year}</div>
 <div class="owner">${owner}</div>
+<div class="meta">Rate: ${(percent*100).toFixed(0)}% · Mode: ${payType.toUpperCase()}</div>
+`;
 
-<div class="summary">
-<div class="summary-box">ACCOMMODATION<span>$${totalAcc.toFixed(2)}</span></div>
-<div class="summary-box">PMC<span>$${totalMgmt.toFixed(2)}</span></div>
-<div class="summary-box">REPORTABLE TAX<span>$${totalReportTax.toFixed(2)}</span></div>
-${ownerType==="payout"
-?`<div class="summary-box">OWNER PAYOUT<span>$${totalOwner.toFixed(2)}</span></div>`
-:`<div class="summary-box">DRAFT<span>$${totalDraft.toFixed(2)}</span></div>`}
-</div>
+let tablesHTML="";
+
+Object.keys(grouped).forEach(listing=>{
+let pAcc=0,pMgmt=0,pOwner=0,pDraft=0,pCleaning=0;
+
+let table=`
+<div class="property-section">
+<div class="property-title">🏠 ${listing}</div>
+<table>
+<tr>
+<th>Reservation ID</th>
+<th>Platform</th>
+<th>Stay</th>
+<th>Accommodation</th>
+<th>PMC</th>
+${payType==="payout" ? "<th>Owner Payout</th>" : "<th>Cleaning</th><th>Draft</th>"}
+</tr>
+`;
+
+grouped[listing].forEach(r=>{
+const accommodation = num(r["ACCOMMODATION FARE"]) - num(r["MARKUP"]); // your “true accommodation”
+const cleaning = num(r["CLEANING FARE"]);
+const payout = num(r["TOTAL PAYOUT"]);
+const mgmt = accommodation * percent;
+
+const ownerPayout = accommodation - mgmt;
+const draft = mgmt + cleaning;
+
+if(hasAnyTax(r)) totalReportablePayout += payout;
+
+pAcc += accommodation;
+pMgmt += mgmt;
+pOwner += ownerPayout;
+pDraft += draft;
+pCleaning += cleaning;
+
+totalAcc += accommodation;
+totalMgmt += mgmt;
+totalCleaning += cleaning;
+
+if(payType==="payout") totalOwner += ownerPayout;
+else totalDraft += draft;
+
+table += `
+<tr>
+<td class="left">${r["CONFIRMATION CODE"]||""}</td>
+<td class="left">${r["PLATFORM"]||""}</td>
+<td>${stay(r["CHECK-IN DATE"],r["CHECK-OUT DATE"])}</td>
+<td>${money(accommodation)}</td>
+<td>${money(mgmt)}</td>
+${payType==="payout"
+? `<td>${money(ownerPayout)}</td>`
+: `<td>${money(cleaning)}</td><td>${money(draft)}</td>`}
+</tr>
+`;
+});
+
+table += `
+<tr class="total-row">
+<td class="left">TOTAL</td><td></td><td></td>
+<td>${money(pAcc)}</td>
+<td>${money(pMgmt)}</td>
+${payType==="payout"
+? `<td>${money(pOwner)}</td>`
+: `<td>${money(pCleaning)}</td><td>${money(pDraft)}</td>`}
+</tr>
+</table>
 </div>
 `;
 
-document.getElementById("output").innerHTML=html;
+tablesHTML += table;
+});
+
+/* SUMMARY (ON TOP, UNDER OWNER NAME) */
+const summaryHTML = `
+<div class="summary">
+<div class="summary-box">ACCOMMODATION<span>${money(totalAcc)}</span></div>
+<div class="summary-box">PMC COMMISSION<span>${money(totalMgmt)}</span></div>
+<div class="summary-box">REPORTABLE TAX PAYOUT<span>${money(totalReportablePayout)}</span></div>
+${payType==="payout"
+? `<div class="summary-box">OWNER PAYOUT<span>${money(totalOwner)}</span></div>`
+: `<div class="summary-box">DRAFT FROM OWNER<span>${money(totalDraft)}</span></div>`}
+</div>
+`;
+
+statementHTML += summaryHTML + tablesHTML + "</div>";
+
+document.getElementById("output").innerHTML = statementHTML;
+document.getElementById("pdfBtn").disabled=false;
+
+setNotice("Statement ready. Use Download Clean PDF to save and send to owner.");
 }
 
-/* PDF DOWNLOAD */
+/* ========= PDF EXPORT ========= */
 function downloadPDF(){
 const el=document.getElementById("statement");
-if(!el){alert("Run statement first");return;}
+if(!el){ setNotice("Run statement first (CSV).",true); return; }
 
-html2pdf().from(el).set({
+const owner=ownerSelect.value.replace(/[^\w\- ]+/g,"").trim();
+const year=yearSelect.value;
+const monthName=monthSelect.options[monthSelect.selectedIndex].text.replace(/\s+/g,"_");
+const filename=`Reservation_Statement_${owner}_${monthName}_${year}.pdf`;
+
+html2pdf().set({
 margin:10,
-filename:"reservation_statement.pdf",
-html2canvas:{scale:2},
+filename:filename,
+image:{type:"jpeg",quality:0.98},
+html2canvas:{scale:2,useCORS:true},
 jsPDF:{unit:"mm",format:"a4",orientation:"portrait"}
-}).save();
+}).from(el).save();
 }
 </script>
 

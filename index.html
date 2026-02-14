@@ -5,154 +5,125 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 
 <style>
-body { margin:0; font-family:Arial; background:#0f172a; color:#e5e7eb; }
-
-/* TOP BAR */
-.topbar {
- background:#111827;
- padding:15px;
- display:flex;
- justify-content:center;
- gap:12px;
- flex-wrap:wrap;
- border-bottom:1px solid #1f2937;
+body{margin:0;font-family:Arial;background:#0f172a;color:#e5e7eb}
+.topbar{background:#111827;padding:15px;display:flex;justify-content:center;gap:12px;flex-wrap:wrap;border-bottom:1px solid #1f2937}
+.topbar select,.topbar input,.topbar button{padding:7px 10px;border:none;border-radius:4px}
+.topbar button{background:#2563eb;color:white;font-weight:bold;cursor:pointer}
+.topbar select:disabled{background:#374151;color:#9ca3af}
+.content{max-width:1100px;margin:auto;padding:50px 20px;text-align:center}
+.title{font-size:34px}
+.period{color:#9ca3af;margin-top:5px}
+.owner{font-size:42px;color:#facc15;margin-top:15px}
+.summary{display:flex;justify-content:center;gap:60px;margin:35px 0 50px;flex-wrap:wrap}
+.summary-box span{display:block;font-size:28px;margin-top:6px}
+.property-section{text-align:left;margin-top:40px}
+.property-title{font-size:20px;margin-bottom:10px}
+table{width:100%;border-collapse:collapse;background:#111827}
+th,td{padding:10px;border:1px solid #1f2937}
+th{background:#1f2937;text-align:center}
+td{text-align:right}
+td.left{text-align:left}
+.total-row{background:#1f2937;font-weight:bold}
+.print-btn{background:#16a34a!important}
+@media print{
+.topbar{display:none}
+body{background:white;color:black}
+table{background:white}
 }
-
-.topbar select,
-.topbar input,
-.topbar button {
- padding:7px 10px;
- border:none;
- border-radius:4px;
-}
-
-.topbar button {
- background:#2563eb;
- color:white;
- font-weight:bold;
- cursor:pointer;
-}
-
-/* CONTENT */
-.content {
- max-width:1100px;
- margin:auto;
- padding:50px 20px;
- text-align:center;
-}
-
-/* HEADER */
-.title { font-size:34px; }
-.period { color:#9ca3af; margin-top:5px; }
-.owner { font-size:42px; color:#facc15; margin-top:15px; }
-
-/* SUMMARY */
-.summary {
- display:flex;
- justify-content:center;
- gap:60px;
- margin:35px 0 50px;
-}
-
-.summary-box span {
- display:block;
- font-size:28px;
- margin-top:6px;
-}
-
-/* TABLE */
-.property-section { text-align:left; margin-top:40px; }
-.property-title { font-size:20px; margin-bottom:10px; }
-
-table {
- width:100%;
- border-collapse:collapse;
- background:#111827;
-}
-
-th, td {
- padding:10px;
- border:1px solid #1f2937;
-}
-
-th { background:#1f2937; text-align:center; }
-td { text-align:right; }
-td.left { text-align:left; }
-
-.total-row { background:#1f2937; font-weight:bold; }
 </style>
 </head>
 
 <body>
 
 <div class="topbar">
-<select id="owner">
-<option value="Eran">Eran</option>
-<option value="GHO">GHO</option>
-</select>
+
+<select id="owner" onchange="applyOwnerDefaults()"></select>
 
 <select id="month"></select>
 <select id="year"></select>
 
-<select id="percent">
-<option value="0.10">10%</option>
-<option value="0.12" selected>12%</option>
-<option value="0.15">15%</option>
-<option value="0.20">20%</option>
-</select>
-
-<select id="ownerType">
-<option value="pmc">PMC Holds Payout</option>
-<option value="direct">Owner Gets Paid Directly</option>
-</select>
+<select id="percent" disabled></select>
+<select id="ownerType" disabled></select>
 
 <input type="file" id="csvFile" accept=".csv">
 <button onclick="generate()">Run Statement</button>
+<button class="print-btn" onclick="window.print()">Export / Print PDF</button>
 </div>
 
 <div id="output" class="content"></div>
 
 <script>
+/* ========= OWNER CONFIG ========= */
+const owners={
+"ERAN":{percent:0.12,type:"draft"},
+"GHO":{percent:0.10,type:"payout"},
+"1463 Basin Trail":{percent:0.12,type:"payout"},
+"113B-15S Surfside Beach":{percent:0.12,type:"payout"},
+"113B-13N Surfside Beach":{percent:0.12,type:"payout"},
+"115C-15N Surfside Beach":{percent:0.12,type:"payout"},
+"2131 Sanibel Myrtle Beach":{percent:0.15,type:"payout"},
+"1552 Elizabeth Ln Myrtle Beach":{percent:0.15,type:"payout"},
+"469C White River RD Myrtle Beach":{percent:0.12,type:"payout"},
+"4631-301 Wild Iris Drive Myrtle Beach":{percent:0.12,type:"payout"},
+"4679-204 Wild Iris Drive Myrtle Beach":{percent:0.12,type:"payout"},
+"508-1/2 33rd Ave North Myrtle Beach":{percent:0.15,type:"payout"},
+"214-2S 2nd Ave S. North Myrtle Beach":{percent:0.12,type:"payout"}
+};
 
-/* Populate month/year */
+/* ========= LOAD OWNER DROPDOWN ========= */
+const ownerSelect=document.getElementById("owner");
+Object.keys(owners).forEach(o=>{
+ownerSelect.innerHTML+=`<option value="${o}">${o}</option>`;
+});
+
+/* ========= APPLY OWNER DEFAULTS ========= */
+function applyOwnerDefaults(){
+const o=ownerSelect.value;
+document.getElementById("percent").innerHTML=`<option>${owners[o].percent*100}%</option>`;
+document.getElementById("ownerType").innerHTML=`<option>${owners[o].type.toUpperCase()}</option>`;
+}
+
+/* ========= MONTH + YEAR ========= */
 const monthSelect=document.getElementById("month");
 const yearSelect=document.getElementById("year");
 const now=new Date();
 
 for(let m=1;m<=12;m++){
- let mm=m.toString().padStart(2,"0");
- let name=new Date(0,m-1).toLocaleString('default',{month:'long'});
- monthSelect.innerHTML+=`<option value="${mm}">${name}</option>`;
+let mm=m.toString().padStart(2,"0");
+let name=new Date(0,m-1).toLocaleString('default',{month:'long'});
+monthSelect.innerHTML+=`<option value="${mm}">${name}</option>`;
 }
 monthSelect.value=(now.getMonth()+1).toString().padStart(2,"0");
 
 for(let y=now.getFullYear()-3;y<=now.getFullYear()+3;y++){
- yearSelect.innerHTML+=`<option value="${y}">${y}</option>`;
+yearSelect.innerHTML+=`<option value="${y}">${y}</option>`;
 }
 yearSelect.value=now.getFullYear();
 
-/* helpers */
-function num(v){ return parseFloat((v||"0").toString().replace(/[$,]/g,''))||0; }
-function stay(i,o){
- if(!i||!o) return "";
- let a=i.split("-"), b=o.split("-");
- return a[1]+"/"+a[2]+" - "+b[1]+"/"+b[2];
-}
-function lastDay(year,month){ return new Date(year, month, 0).getDate(); }
+/* ========= INIT ========= */
+applyOwnerDefaults();
 
-/* main */
+/* ========= HELPERS ========= */
+function num(v){return parseFloat((v||"0").toString().replace(/[$,]/g,''))||0}
+function stay(i,o){
+if(!i||!o)return"";
+let a=i.split("-"),b=o.split("-");
+return a[1]+"/"+a[2]+" - "+b[1]+"/"+b[2];
+}
+function lastDay(year,month){return new Date(year,month,0).getDate()}
+
+/* ========= MAIN ========= */
 function generate(){
 
 const output=document.getElementById("output");
 const file=document.getElementById("csvFile").files[0];
-
-if(!file){ alert("Upload CSV first"); return; }
+if(!file){alert("Upload CSV first");return}
 
 let month=monthSelect.value;
 let year=yearSelect.value;
-let owner=document.getElementById("owner").value;
-let percent=parseFloat(document.getElementById("percent").value);
-let ownerType=document.getElementById("ownerType").value;
+let owner=ownerSelect.value;
+let percent=owners[owner].percent;
+let ownerType=owners[owner].type;
 let endDay=lastDay(year,month);
 
 Papa.parse(file,{
@@ -163,22 +134,19 @@ complete:function(res){
 let rows=res.data;
 let grouped={};
 
-let totalTrue=0, totalMgmt=0, totalCleaning=0, totalOwner=0, totalDraft=0, totalTax=0;
+let totalTrue=0,totalMgmt=0,totalCleaning=0,totalOwner=0,totalDraft=0,totalReportTax=0;
 
-/* filter & group */
 rows.forEach(r=>{
- if(num(r["CANCELED TOTAL PAYOUT"])!==0) return;
- if(!r["CHECK-IN DATE"]) return;
+if(num(r["CANCELED TOTAL PAYOUT"])!==0)return;
+if(!r["CHECK-IN DATE"])return;
+if(r["CHECK-IN DATE"].substring(5,7)!==month)return;
+if(r["CHECK-IN DATE"].substring(0,4)!==year.toString())return;
 
- if(r["CHECK-IN DATE"].substring(5,7)!==month) return;
- if(r["CHECK-IN DATE"].substring(0,4)!==year.toString()) return;
-
- let listing=r["LISTING'S NICKNAME"]||"Unknown";
- if(!grouped[listing]) grouped[listing]=[];
- grouped[listing].push(r);
+let listing=r["LISTING'S NICKNAME"]||"Unknown";
+if(!grouped[listing])grouped[listing]=[];
+grouped[listing].push(r);
 });
 
-/* header */
 let html=`
 <div class="title">RESERVATION STATEMENT</div>
 <div class="period">
@@ -188,13 +156,12 @@ ${new Date(year,month-1).toLocaleString('default',{month:'long'})} ${endDay}, ${
 <div class="owner">${owner}</div>
 `;
 
-/* summary will be inserted after totals calculated */
 let tablesHTML="";
 
-/* tables */
+/* ========= GROUP LOOP ========= */
 Object.keys(grouped).forEach(listing=>{
 
-let pTrue=0, pMgmt=0, pCleaning=0, pOwner=0, pDraft=0;
+let pTrue=0,pMgmt=0,pCleaning=0,pOwner=0,pDraft=0,pReportTax=0;
 
 let table=`
 <div class="property-section">
@@ -206,7 +173,7 @@ let table=`
 <th>Stay</th>
 <th>True Accommodation</th>
 <th>PMC</th>
-${ownerType==="pmc"?"<th>Owner Payout</th>":"<th>Cleaning</th><th>Draft</th>"}
+${ownerType==="payout"?"<th>Owner Payout</th>":"<th>Cleaning</th><th>Draft</th>"}
 </tr>
 `;
 
@@ -215,17 +182,37 @@ grouped[listing].forEach(r=>{
 let acc=num(r["ACCOMMODATION FARE"]);
 let markup=num(r["MARKUP"]);
 let cleaning=num(r["CLEANING FARE"]);
-let tax=num(r["CITY TAX"])+num(r["STATE TAX"])+num(r["COUNTY TAX"])+num(r["OCCUPANCY TAX"]);
+let payout=num(r["TOTAL PAYOUT"]);
+
+let taxCollected =
+num(r["CITY TAX"]) +
+num(r["STATE TAX"]) +
+num(r["COUNTY TAX"]) +
+num(r["OCCUPANCY TAX"]);
 
 let trueAcc=acc-markup;
 let mgmt=trueAcc*percent;
 let ownerPay=trueAcc-mgmt;
 let draft=mgmt+cleaning;
 
-pTrue+=trueAcc; pMgmt+=mgmt; pCleaning+=cleaning; pOwner+=ownerPay; pDraft+=draft;
+/* TAX REPORT LOGIC */
+if(taxCollected>0){
+pReportTax+=payout;
+totalReportTax+=payout;
+}
 
-totalTrue+=trueAcc; totalMgmt+=mgmt; totalCleaning+=cleaning; totalTax+=tax;
-if(ownerType==="pmc") totalOwner+=ownerPay; else totalDraft+=draft;
+pTrue+=trueAcc;
+pMgmt+=mgmt;
+pCleaning+=cleaning;
+pOwner+=ownerPay;
+pDraft+=draft;
+
+totalTrue+=trueAcc;
+totalMgmt+=mgmt;
+totalCleaning+=cleaning;
+
+if(ownerType==="payout") totalOwner+=ownerPay;
+else totalDraft+=draft;
 
 table+=`
 <tr>
@@ -234,20 +221,21 @@ table+=`
 <td>${stay(r["CHECK-IN DATE"],r["CHECK-OUT DATE"])}</td>
 <td>$${trueAcc.toFixed(2)}</td>
 <td>$${mgmt.toFixed(2)}</td>
-${ownerType==="pmc"
- ? `<td>$${ownerPay.toFixed(2)}</td>`
- : `<td>$${cleaning.toFixed(2)}</td><td>$${draft.toFixed(2)}</td>`}
+${ownerType==="payout"
+?`<td>$${ownerPay.toFixed(2)}</td>`
+:`<td>$${cleaning.toFixed(2)}</td><td>$${draft.toFixed(2)}</td>`}
 </tr>`;
 });
 
+/* PROPERTY TOTAL */
 table+=`
 <tr class="total-row">
 <td class="left">TOTAL</td><td></td><td></td>
 <td>$${pTrue.toFixed(2)}</td>
 <td>$${pMgmt.toFixed(2)}</td>
-${ownerType==="pmc"
- ? `<td>$${pOwner.toFixed(2)}</td>`
- : `<td>$${pCleaning.toFixed(2)}</td><td>$${pDraft.toFixed(2)}</td>`}
+${ownerType==="payout"
+?`<td>$${pOwner.toFixed(2)}</td>`
+:`<td>$${pCleaning.toFixed(2)}</td><td>$${pDraft.toFixed(2)}</td>`}
 </tr>
 </table>
 </div>
@@ -256,23 +244,21 @@ ${ownerType==="pmc"
 tablesHTML+=table;
 });
 
-/* summary */
+/* ========= SUMMARY ========= */
 let summary=`
 <div class="summary">
 <div class="summary-box">TRUE ACCOMMODATION<span>$${totalTrue.toFixed(2)}</span></div>
 <div class="summary-box">PMC COMMISSION<span>$${totalMgmt.toFixed(2)}</span></div>
-<div class="summary-box">TOTAL TAX<span>$${totalTax.toFixed(2)}</span></div>
-${ownerType==="pmc"
- ? `<div class="summary-box">OWNER PAYOUT<span>$${totalOwner.toFixed(2)}</span></div>`
- : `<div class="summary-box">DRAFT FROM OWNER<span>$${totalDraft.toFixed(2)}</span></div>`}
+<div class="summary-box">REPORTABLE TAX PAYOUT<span>$${totalReportTax.toFixed(2)}</span></div>
+${ownerType==="payout"
+?`<div class="summary-box">OWNER PAYOUT<span>$${totalOwner.toFixed(2)}</span></div>`
+:`<div class="summary-box">DRAFT FROM OWNER<span>$${totalDraft.toFixed(2)}</span></div>`}
 </div>
 `;
 
-output.innerHTML = html + summary + tablesHTML;
-
+output.innerHTML=html+summary+tablesHTML;
 }
 });
-
 }
 </script>
 

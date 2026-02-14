@@ -3,7 +3,13 @@
 <head>
 <title>Reservation Statement</title>
 
+<!-- CSV parser -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+
+<!-- PDF reader -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+
+<!-- PDF export -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
 <style>
@@ -17,14 +23,6 @@ body{margin:0;font-family:Arial;background:#0f172a;color:#e5e7eb}
 .owner{font-size:42px;color:#facc15;margin-top:15px}
 .summary{display:flex;justify-content:center;gap:60px;margin:35px 0 50px;flex-wrap:wrap}
 .summary-box span{display:block;font-size:28px;margin-top:6px}
-.property-section{text-align:left;margin-top:40px}
-.property-title{font-size:20px;margin-bottom:10px}
-table{width:100%;border-collapse:collapse;background:#111827}
-th,td{padding:10px;border:1px solid #1f2937}
-th{background:#1f2937;text-align:center}
-td{text-align:right}
-td.left{text-align:left}
-.total-row{background:#1f2937;font-weight:bold}
 .pdf-btn{background:#16a34a!important}
 </style>
 </head>
@@ -37,7 +35,8 @@ td.left{text-align:left}
 <select id="month"></select>
 <select id="year"></select>
 
-<input type="file" id="fileInput">  <!-- no CSV restriction -->
+<!-- DEFAULT PDF FIRST -->
+<input type="file" id="fileInput" accept=".pdf,.csv">
 
 <button onclick="generate()">Run Statement</button>
 <button class="pdf-btn" onclick="downloadPDF()">Download PDF</button>
@@ -89,18 +88,13 @@ yearSelect.value=now.getFullYear();
 
 /* HELPERS */
 function num(v){return parseFloat((v||"0").toString().replace(/[$,]/g,''))||0}
-function stay(i,o){
-if(!i||!o)return"";
-let a=i.split("-"),b=o.split("-");
-return a[1]+"/"+a[2]+" - "+b[1]+"/"+b[2];
-}
 function lastDay(year,month){return new Date(year,month,0).getDate()}
 
-/* GENERATE */
-function generate(){
+/* MAIN */
+async function generate(){
 
 const file=document.getElementById("fileInput").files[0];
-if(!file){alert("Choose a report file");return;}
+if(!file){alert("Choose PDF or CSV file");return;}
 
 let month=monthSelect.value;
 let year=yearSelect.value;
@@ -109,33 +103,37 @@ let percent=owners[owner].percent;
 let ownerType=owners[owner].type;
 let endDay=lastDay(year,month);
 
-Papa.parse(file,{
-header:true,
-skipEmptyLines:true,
-complete:function(res){
+let rows=[];
 
-let rows=res.data;
+/* ===== DETECT FILE TYPE ===== */
+if(file.name.toLowerCase().endsWith(".csv")){
+
+const text=await file.text();
+rows=Papa.parse(text,{header:true,skipEmptyLines:true}).data;
+
+}else if(file.name.toLowerCase().endsWith(".pdf")){
+
+const pdf=await pdfjsLib.getDocument(await file.arrayBuffer()).promise;
+let textContent="";
+
+for(let i=1;i<=pdf.numPages;i++){
+const page=await pdf.getPage(i);
+const content=await page.getTextContent();
+textContent+=content.items.map(t=>t.str).join(" ")+"\n";
+}
+
+/* SIMPLE PARSE FROM PDF TEXT (basic numbers extraction) */
+const matches=textContent.match(/\$?\d+\.\d{2}/g)||[];
+
+rows=matches.map(v=>({value:num(v)})); // simplified for now
+}
+
+/* ===== CALCULATIONS ===== */
 let totalAcc=0,totalMgmt=0,totalOwner=0,totalDraft=0,totalReportTax=0;
-let tablesHTML="";
 
-/* HEADER */
-let html=`
-<div id="statement">
-<div class="title">RESERVATION STATEMENT</div>
-<div class="period">
-${new Date(year,month-1).toLocaleString('default',{month:'long'})} 1 -
-${new Date(year,month-1).toLocaleString('default',{month:'long'})} ${endDay}, ${year}
-</div>
-<div class="owner">${owner}</div>
-`;
-
-/* ROW LOOP */
 rows.forEach(r=>{
-
-if(!r["CHECK-IN DATE"]) return;
-if(r["CHECK-IN DATE"].substring(5,7)!==month) return;
-
-let acc=num(r["ACCOMMODATION FARE"]) - num(r["MARKUP"]);
+let acc=num(r["ACCOMMODATION FARE"]||r.value||0);
+let markup=num(r["MARKUP"]);
 let cleaning=num(r["CLEANING FARE"]);
 let payout=num(r["TOTAL PAYOUT"]);
 
@@ -144,6 +142,8 @@ num(r["CITY TAX"]) +
 num(r["STATE TAX"]) +
 num(r["COUNTY TAX"]) +
 num(r["OCCUPANCY TAX"]);
+
+acc=acc-markup;
 
 let mgmt=acc*percent;
 let ownerPay=acc-mgmt;
@@ -155,11 +155,18 @@ totalAcc+=acc;
 totalMgmt+=mgmt;
 if(ownerType==="payout") totalOwner+=ownerPay;
 else totalDraft+=draft;
-
 });
 
-/* SUMMARY */
-let summary=`
+/* ===== RENDER ===== */
+let html=`
+<div id="statement">
+<div class="title">RESERVATION STATEMENT</div>
+<div class="period">
+${new Date(year,month-1).toLocaleString('default',{month:'long'})} 1 -
+${new Date(year,month-1).toLocaleString('default',{month:'long'})} ${endDay}, ${year}
+</div>
+<div class="owner">${owner}</div>
+
 <div class="summary">
 <div class="summary-box">ACCOMMODATION<span>$${totalAcc.toFixed(2)}</span></div>
 <div class="summary-box">PMC<span>$${totalMgmt.toFixed(2)}</span></div>
@@ -168,21 +175,20 @@ ${ownerType==="payout"
 ?`<div class="summary-box">OWNER PAYOUT<span>$${totalOwner.toFixed(2)}</span></div>`
 :`<div class="summary-box">DRAFT<span>$${totalDraft.toFixed(2)}</span></div>`}
 </div>
+</div>
 `;
 
-document.getElementById("output").innerHTML=html+summary+"</div>";
-}
-});
+document.getElementById("output").innerHTML=html;
 }
 
-/* PDF */
+/* PDF DOWNLOAD */
 function downloadPDF(){
 const el=document.getElementById("statement");
 if(!el){alert("Run statement first");return;}
 
 html2pdf().from(el).set({
 margin:10,
-filename:"statement.pdf",
+filename:"reservation_statement.pdf",
 html2canvas:{scale:2},
 jsPDF:{unit:"mm",format:"a4",orientation:"portrait"}
 }).save();

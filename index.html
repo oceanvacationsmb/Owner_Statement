@@ -3,10 +3,7 @@
 <head>
 <title>Reservation Statement</title>
 
-<!-- CSV -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-
-<!-- PDF -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
 <style>
@@ -14,7 +11,6 @@ body{margin:0;font-family:Arial;background:#0f172a;color:#e5e7eb}
 .topbar{background:#111827;padding:15px;display:flex;justify-content:center;gap:12px;flex-wrap:wrap;border-bottom:1px solid #1f2937}
 .topbar select,.topbar input,.topbar button{padding:7px 10px;border:none;border-radius:4px}
 .topbar button{background:#2563eb;color:white;font-weight:bold;cursor:pointer}
-.topbar select:disabled{background:#374151;color:#9ca3af}
 .content{max-width:1100px;margin:auto;padding:50px 20px;text-align:center}
 .title{font-size:34px}
 .period{color:#9ca3af;margin-top:5px}
@@ -30,12 +26,6 @@ td{text-align:right}
 td.left{text-align:left}
 .total-row{background:#1f2937;font-weight:bold}
 .pdf-btn{background:#16a34a!important}
-input[type=file]{color:#e5e7eb}
-@media print{
-.topbar{display:none}
-body{background:white;color:black}
-table{background:white}
-}
 </style>
 </head>
 
@@ -43,24 +33,21 @@ table{background:white}
 
 <div class="topbar">
 
-<select id="owner" onchange="applyOwnerDefaults()"></select>
+<select id="owner"></select>
 <select id="month"></select>
 <select id="year"></select>
 
-<select id="percent" disabled></select>
-<select id="ownerType" disabled></select>
-
-<input type="file" id="csvFile" accept=".csv">
+<input type="file" id="fileInput">  <!-- no CSV restriction -->
 
 <button onclick="generate()">Run Statement</button>
-<button class="pdf-btn" onclick="downloadPDF()">Download Clean PDF</button>
+<button class="pdf-btn" onclick="downloadPDF()">Download PDF</button>
 
 </div>
 
 <div id="output" class="content"></div>
 
 <script>
-/* ========= OWNERS ========= */
+/* OWNERS */
 const owners={
 "ERAN":{percent:0.12,type:"draft"},
 "GHO":{percent:0.10,type:"payout"},
@@ -77,20 +64,13 @@ const owners={
 "214-2S 2nd Ave S. North Myrtle Beach":{percent:0.12,type:"payout"}
 };
 
-/* ========= LOAD OWNER DROPDOWN ========= */
+/* LOAD OWNER DROPDOWN */
 const ownerSelect=document.getElementById("owner");
 Object.keys(owners).forEach(o=>{
 ownerSelect.innerHTML+=`<option value="${o}">${o}</option>`;
 });
 
-/* ========= APPLY OWNER DEFAULTS ========= */
-function applyOwnerDefaults(){
-const o=ownerSelect.value;
-document.getElementById("percent").innerHTML=`<option>${owners[o].percent*100}%</option>`;
-document.getElementById("ownerType").innerHTML=`<option>${owners[o].type.toUpperCase()}</option>`;
-}
-
-/* ========= MONTH + YEAR ========= */
+/* MONTH/YEAR */
 const monthSelect=document.getElementById("month");
 const yearSelect=document.getElementById("year");
 const now=new Date();
@@ -107,9 +87,7 @@ yearSelect.innerHTML+=`<option value="${y}">${y}</option>`;
 }
 yearSelect.value=now.getFullYear();
 
-applyOwnerDefaults();
-
-/* ========= HELPERS ========= */
+/* HELPERS */
 function num(v){return parseFloat((v||"0").toString().replace(/[$,]/g,''))||0}
 function stay(i,o){
 if(!i||!o)return"";
@@ -118,12 +96,11 @@ return a[1]+"/"+a[2]+" - "+b[1]+"/"+b[2];
 }
 function lastDay(year,month){return new Date(year,month,0).getDate()}
 
-/* ========= GENERATE ========= */
+/* GENERATE */
 function generate(){
 
-const output=document.getElementById("output");
-const file=document.getElementById("csvFile").files[0];
-if(!file){alert("Please choose CSV file");return}
+const file=document.getElementById("fileInput").files[0];
+if(!file){alert("Choose a report file");return;}
 
 let month=monthSelect.value;
 let year=yearSelect.value;
@@ -138,21 +115,10 @@ skipEmptyLines:true,
 complete:function(res){
 
 let rows=res.data;
-let grouped={};
-
 let totalAcc=0,totalMgmt=0,totalOwner=0,totalDraft=0,totalReportTax=0;
+let tablesHTML="";
 
-rows.forEach(r=>{
-if(num(r["CANCELED TOTAL PAYOUT"])!==0)return;
-if(!r["CHECK-IN DATE"])return;
-if(r["CHECK-IN DATE"].substring(5,7)!==month)return;
-if(r["CHECK-IN DATE"].substring(0,4)!==year.toString())return;
-
-let listing=r["LISTING'S NICKNAME"]||"Unknown";
-if(!grouped[listing])grouped[listing]=[];
-grouped[listing].push(r);
-});
-
+/* HEADER */
 let html=`
 <div id="statement">
 <div class="title">RESERVATION STATEMENT</div>
@@ -163,28 +129,11 @@ ${new Date(year,month-1).toLocaleString('default',{month:'long'})} ${endDay}, ${
 <div class="owner">${owner}</div>
 `;
 
-let tablesHTML="";
+/* ROW LOOP */
+rows.forEach(r=>{
 
-/* ========= PROPERTY LOOP ========= */
-Object.keys(grouped).forEach(listing=>{
-
-let pAcc=0,pMgmt=0,pOwner=0,pDraft=0;
-
-let table=`
-<div class="property-section">
-<div class="property-title">🏠 ${listing}</div>
-<table>
-<tr>
-<th>Reservation ID</th>
-<th>Platform</th>
-<th>Stay</th>
-<th>Accommodation</th>
-<th>PMC</th>
-${ownerType==="payout"?"<th>Owner Payout</th>":"<th>Draft</th>"}
-</tr>
-`;
-
-grouped[listing].forEach(r=>{
+if(!r["CHECK-IN DATE"]) return;
+if(r["CHECK-IN DATE"].substring(5,7)!==month) return;
 
 let acc=num(r["ACCOMMODATION FARE"]) - num(r["MARKUP"]);
 let cleaning=num(r["CLEANING FARE"]);
@@ -200,77 +149,43 @@ let mgmt=acc*percent;
 let ownerPay=acc-mgmt;
 let draft=mgmt+cleaning;
 
-/* REPORTABLE TAX = payout only when tax exists */
 if(taxCollected>0) totalReportTax+=payout;
-
-pAcc+=acc;
-pMgmt+=mgmt;
-pOwner+=ownerPay;
-pDraft+=draft;
 
 totalAcc+=acc;
 totalMgmt+=mgmt;
 if(ownerType==="payout") totalOwner+=ownerPay;
 else totalDraft+=draft;
 
-table+=`
-<tr>
-<td class="left">${r["CONFIRMATION CODE"]||""}</td>
-<td class="left">${r["PLATFORM"]||""}</td>
-<td>${stay(r["CHECK-IN DATE"],r["CHECK-OUT DATE"])}</td>
-<td>$${acc.toFixed(2)}</td>
-<td>$${mgmt.toFixed(2)}</td>
-${ownerType==="payout"
-?`<td>$${ownerPay.toFixed(2)}</td>`
-:`<td>$${draft.toFixed(2)}</td>`}
-</tr>`;
 });
 
-table+=`
-<tr class="total-row">
-<td class="left">TOTAL</td><td></td><td></td>
-<td>$${pAcc.toFixed(2)}</td>
-<td>$${pMgmt.toFixed(2)}</td>
-${ownerType==="payout"
-?`<td>$${pOwner.toFixed(2)}</td>`
-:`<td>$${pDraft.toFixed(2)}</td>`}
-</tr>
-</table>
-</div>
-`;
-
-tablesHTML+=table;
-});
-
-/* ========= SUMMARY ========= */
+/* SUMMARY */
 let summary=`
 <div class="summary">
 <div class="summary-box">ACCOMMODATION<span>$${totalAcc.toFixed(2)}</span></div>
-<div class="summary-box">PMC COMMISSION<span>$${totalMgmt.toFixed(2)}</span></div>
-<div class="summary-box">REPORTABLE TAX PAYOUT<span>$${totalReportTax.toFixed(2)}</span></div>
+<div class="summary-box">PMC<span>$${totalMgmt.toFixed(2)}</span></div>
+<div class="summary-box">REPORTABLE TAX<span>$${totalReportTax.toFixed(2)}</span></div>
 ${ownerType==="payout"
 ?`<div class="summary-box">OWNER PAYOUT<span>$${totalOwner.toFixed(2)}</span></div>`
-:`<div class="summary-box">DRAFT FROM OWNER<span>$${totalDraft.toFixed(2)}</span></div>`}
+:`<div class="summary-box">DRAFT<span>$${totalDraft.toFixed(2)}</span></div>`}
 </div>
 `;
 
-output.innerHTML=html+summary+tablesHTML+"</div>";
+document.getElementById("output").innerHTML=html+summary+"</div>";
 }
 });
 }
 
-/* ========= PDF DOWNLOAD ========= */
+/* PDF */
 function downloadPDF(){
-const element=document.getElementById("statement");
-if(!element){alert("Run statement first");return;}
+const el=document.getElementById("statement");
+if(!el){alert("Run statement first");return;}
 
-html2pdf().set({
+html2pdf().from(el).set({
 margin:10,
-filename:"reservation_statement.pdf",
-image:{type:"jpeg",quality:0.98},
+filename:"statement.pdf",
 html2canvas:{scale:2},
 jsPDF:{unit:"mm",format:"a4",orientation:"portrait"}
-}).from(element).save();
+}).save();
 }
 </script>
 

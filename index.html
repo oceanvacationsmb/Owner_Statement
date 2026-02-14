@@ -60,7 +60,7 @@ let totalOwner=0;
 let totalDraft=0;
 let totalTax=0;
 
-/* GROUP DATA */
+/* GROUP ROWS */
 rows.forEach(function(r){
 
 if(num(r["CANCELED TOTAL PAYOUT"])!==0) return;
@@ -78,7 +78,7 @@ grouped[listing].push(r);
 
 });
 
-/* BUILD HEADER */
+/* HEADER */
 let html=`
 <div class="title">RESERVATION STATEMENT</div>
 <div class="period">
@@ -88,7 +88,9 @@ ${new Date(year,month-1).toLocaleString('default',{month:'long'})} ${endDay}, ${
 <div class="owner">${owner}</div>
 `;
 
-/* BUILD PROPERTY TABLES */
+/* TABLES */
+let tablesHTML="";
+
 Object.keys(grouped).forEach(function(listing){
 
 let propertyTrue=0;
@@ -169,11 +171,11 @@ ${ownerType==="pmc"
 </div>
 `;
 
-html+=table;
+tablesHTML+=table;
 
 });
 
-/* BUILD SUMMARY ONCE */
+/* SUMMARY */
 let summary=`
 <div class="summary">
 <div class="summary-box">TRUE ACCOMMODATION<span>$${totalTrue.toFixed(2)}</span></div>
@@ -185,12 +187,7 @@ ${ownerType==="pmc"
 </div>
 `;
 
-/* INSERT SUMMARY RIGHT UNDER OWNER */
-document.getElementById("output").innerHTML =
-html.replace(
-`<div class="owner">${owner}</div>`,
-`<div class="owner">${owner}</div>${summary}`
-);
+document.getElementById("output").innerHTML = html + summary + tablesHTML;
 
 }
 });

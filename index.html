@@ -10,6 +10,10 @@ h1 { text-align:center; font-size:40px; }
 .owner { text-align:center; font-size:34px; color:#facc15; margin-top:10px; }
 .period { text-align:center; font-size:20px; color:#9ca3af; margin-bottom:25px; }
 
+.summary { display:flex; justify-content:space-between; margin-bottom:35px; }
+.summary div { text-align:center; flex:1; }
+.summary span { display:block; font-size:22px; margin-top:6px; }
+
 .property-title { font-size:20px; margin-top:40px; }
 
 table { width:100%; border-collapse:collapse; margin-top:15px; background:#111827; }
@@ -103,6 +107,10 @@ complete:function(result){
 let rows=result.data;
 let grouped={};
 
+let totalTrueAccommodation=0;
+let totalMgmt=0;
+let totalOwnerPayout=0;
+
 rows.forEach(function(r){
 
 if(num(r["CANCELED TOTAL PAYOUT"])!==0) return;
@@ -131,7 +139,7 @@ new Date(year,month-1).toLocaleString('default',{month:'short'})+
 
 Object.keys(grouped).forEach(function(listing){
 
-let propertyAccommodation=0;
+let propertyTrueAccommodation=0;
 let propertyMgmt=0;
 let propertyOwnerPayout=0;
 
@@ -141,26 +149,36 @@ html+="<tr>";
 html+="<th>Reservation ID</th>";
 html+="<th>Platform</th>";
 html+="<th>Stay</th>";
-html+="<th>Accommodation</th>";
+html+="<th>True Accommodation</th>";
 html+="<th>PMC</th>";
 if(ownerType==="pmc") html+="<th>Owner Payout</th>";
 html+="</tr>";
 
 grouped[listing].forEach(function(r){
 
-let accommodation=num(r["ACCOMMODATION FARE"]);
-let mgmt=accommodation*percent;
-let ownerPayout=accommodation-mgmt;
+let acc=num(r["ACCOMMODATION FARE"]);
+let markup=num(r["MARKUP"]);
 
-propertyAccommodation+=accommodation;
+let trueAccommodation=acc-markup;   // FIXED FORMULA
+let mgmt=trueAccommodation*percent;
+let ownerPayout=trueAccommodation-mgmt;
+
+propertyTrueAccommodation+=trueAccommodation;
 propertyMgmt+=mgmt;
 propertyOwnerPayout+=ownerPayout;
+
+totalTrueAccommodation+=trueAccommodation;
+totalMgmt+=mgmt;
+
+if(ownerType==="pmc"){
+ totalOwnerPayout+=ownerPayout;
+}
 
 html+="<tr>";
 html+="<td class='left'>"+(r["CONFIRMATION CODE"]||"")+"</td>";
 html+="<td class='left'>"+(r["PLATFORM"]||"")+"</td>";
 html+="<td>"+stay(r["CHECK-IN DATE"],r["CHECK-OUT DATE"])+"</td>";
-html+="<td>$"+accommodation.toFixed(2)+"</td>";
+html+="<td>$"+trueAccommodation.toFixed(2)+"</td>";
 html+="<td>$"+mgmt.toFixed(2)+"</td>";
 if(ownerType==="pmc") html+="<td>$"+ownerPayout.toFixed(2)+"</td>";
 html+="</tr>";
@@ -170,7 +188,7 @@ html+="</tr>";
 html+="<tr class='total-row'>";
 html+="<td class='left'>TOTAL</td>";
 html+="<td></td><td></td>";
-html+="<td>$"+propertyAccommodation.toFixed(2)+"</td>";
+html+="<td>$"+propertyTrueAccommodation.toFixed(2)+"</td>";
 html+="<td>$"+propertyMgmt.toFixed(2)+"</td>";
 if(ownerType==="pmc") html+="<td>$"+propertyOwnerPayout.toFixed(2)+"</td>";
 html+="</tr>";
@@ -178,6 +196,22 @@ html+="</tr>";
 html+="</table>";
 
 });
+
+html =
+"<div class='owner'>"+owner+"</div>"+
+"<div class='period'>"+
+new Date(year,month-1).toLocaleString('default',{month:'short'})+
+" 1 - "+
+new Date(year,month-1).toLocaleString('default',{month:'short'})+
+" "+endDay+" "+year+
+"</div>"+
+"<div class='summary'>"+
+"<div>TRUE ACCOMMODATION<span>$"+totalTrueAccommodation.toFixed(2)+"</span></div>"+
+"<div>PMC COMMISSION<span>$"+totalMgmt.toFixed(2)+"</span></div>"+
+(ownerType==="pmc"
+ ? "<div>OWNER PAYOUT<span>$"+totalOwnerPayout.toFixed(2)+"</span></div>"
+ : "<div>DRAFT FROM OWNER<span>$"+totalMgmt.toFixed(2)+"</span></div>")+
+"</div>"+html;
 
 document.getElementById("output").innerHTML=html;
 

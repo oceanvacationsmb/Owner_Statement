@@ -8,7 +8,7 @@
 
 <style>
 body{margin:0;font-family:Arial;background:#fff;color:#000}
-.topbar{background:#f2f2f2;padding:10px;display:flex;gap:10px;flex-wrap:wrap;border-bottom:2px solid #000}
+.topbar{background:#f2f2f2;padding:15px;display:flex;justify-content:center;gap:15px;flex-wrap:wrap;border-bottom:2px solid #000}
 button{padding:8px 16px;font-weight:bold;border:none;cursor:pointer}
 .run-btn{background:#000;color:#fff}
 .pdf-btn{background:#444;color:#fff}
@@ -21,6 +21,10 @@ button{padding:8px 16px;font-weight:bold;border:none;cursor:pointer}
 .title{text-align:center;font-size:24px;font-weight:900;margin-top:10px}
 .owner{text-align:center;font-size:18px;font-weight:bold;margin-top:5px}
 .period{text-align:center;font-size:12px;margin-bottom:15px}
+.owner-info-box{background:#f9f9f9;border:2px solid #000;padding:15px;margin:15px 0;text-align:center;font-size:13px}
+.owner-info-row{margin:8px 0}
+.owner-info-label{font-weight:bold;color:#333}
+.owner-info-value{font-size:14px;color:#000;margin-left:10px}
 .section-title{font-size:18px;font-weight:bold;margin-top:10px}
 .summary-box{border:2px solid #000;padding:10px;margin:15px 0}
 .summary{display:flex;justify-content:space-between;font-size:12px}
@@ -34,8 +38,13 @@ th{background:#000;color:#fff}
 .total-row{font-weight:bold;background:#e5e5e5}
 .expense-table input,.expense-table select{width:100%;font-size:10px}
 .attachment{margin-top:10px}
+.owners-setup{background:#f0f0f0;border:2px dashed #333;padding:20px;margin:20px 0;border-radius:5px}
+.owners-setup h3{margin-top:0;color:#333}
+.owner-item{background:#fff;border:1px solid #ccc;padding:12px;margin:10px 0;border-radius:3px}
+.owner-item-header{font-weight:bold;font-size:13px;color:#000}
+.owner-item-detail{font-size:11px;color:#666;margin-left:20px;margin-top:5px}
 @media print{
-.topbar,.finish-btn,.add-row button{display:none}
+.topbar,.finish-btn,.add-row button,.owners-setup{display:none}
 }
 </style>
 </head>
@@ -51,6 +60,13 @@ th{background:#000;color:#fff}
 <button class="pdf-btn" onclick="downloadPDF()">Download PDF</button>
 </div>
 
+<div class="content">
+<div class="owners-setup">
+<h3>📋 Owner Configuration</h3>
+<div id="ownersList"></div>
+</div>
+</div>
+
 <div id="report" class="content"></div>
 
 <script>
@@ -59,6 +75,21 @@ const owners={
 "ERAN MARON":{percent:0.12,type:"draft"},
 "GHO":{percent:0.10,type:"payout"}
 };
+
+// Display owners configuration
+function displayOwnersSetup(){
+let html="";
+Object.entries(owners).forEach(([name,config])=>{
+html+=`
+<div class="owner-item">
+<div class="owner-item-header">👤 ${name}</div>
+<div class="owner-item-detail">Type: <strong>${config.type.toUpperCase()}</strong></div>
+<div class="owner-item-detail">Commission: <strong>${(config.percent*100)}%</strong></div>
+</div>
+`;
+});
+document.getElementById("ownersList").innerHTML=html;
+}
 
 const ownerSelect=document.getElementById("owner");
 Object.keys(owners).forEach(o=>ownerSelect.innerHTML+=`<option>${o}</option>`);
@@ -141,6 +172,17 @@ Payment Date: ${paymentDate.toLocaleDateString()}
 <div class="title">RESERVATION REPORT</div>
 <div class="owner">${owner}</div>
 <div class="period">${month}/1/${year} - ${month}/${endDay}/${year}</div>
+
+<div class="owner-info-box">
+<div class="owner-info-row">
+<span class="owner-info-label">Type:</span>
+<span class="owner-info-value">${type.toUpperCase()}</span>
+</div>
+<div class="owner-info-row">
+<span class="owner-info-label">Commission:</span>
+<span class="owner-info-value">${(percent*100)}%</span>
+</div>
+</div>
 `;
 
 Object.keys(grouped).forEach(listing=>{
@@ -323,6 +365,9 @@ function downloadPDF(){
 html2pdf().set({margin:5,jsPDF:{unit:"mm",format:"a4"}})
 .from(document.getElementById("report")).save("Reservation_Report.pdf");
 }
+
+// Initialize
+displayOwnersSetup();
 
 </script>
 

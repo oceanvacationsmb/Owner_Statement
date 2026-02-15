@@ -15,14 +15,16 @@ body{font-family:Arial;background:#f5f5f5;color:#000;display:flex}
 .sidebar-label{font-size:12px;font-weight:bold;color:#aaa;margin-bottom:5px;display:block}
 .sidebar-control{margin-bottom:12px}
 .sidebar-control select,.sidebar-control input{width:100%;padding:8px;border:1px solid #555;background:#444;color:#fff;border-radius:3px;font-size:12px}
-.sidebar-control button{width:100%;padding:10px;margin-top:5px;font-weight:bold;border:none;cursor:pointer;border-radius:3px}
-.run-btn{background:#000;color:#fff;font-size:14px}
+.sidebar-control button{width:100%;padding:10px;margin-top:5px;font-weight:bold;border:none;cursor:pointer;border-radius:3px;font-size:13px}
+.run-btn{background:#000;color:#fff}
 .run-btn:hover{background:#222}
-.pdf-btn{background:#444;color:#fff;font-size:14px;margin-top:10px}
+.summary-btn{background:#28a745;color:#fff;margin-top:10px}
+.summary-btn:hover{background:#218838}
+.pdf-btn{background:#444;color:#fff;margin-top:10px}
 .pdf-btn:hover{background:#555}
 .settings-toggle{background:#666;color:#fff;padding:10px;border:none;cursor:pointer;width:100%;text-align:left;font-weight:bold;border-radius:3px;margin-bottom:10px;font-size:14px}
 .settings-toggle:hover{background:#777}
-.settings-box{display:none;background:#444;padding:15px;border-radius:3px;margin-top:10px;max-height:500px;overflow-y:auto}
+.settings-box{display:none;background:#444;padding:15px;border-radius:3px;margin-top:10px;max-height:600px;overflow-y:auto}
 .settings-box.open{display:block}
 .owner-item{background:#555;padding:12px;margin-bottom:10px;border-radius:3px;font-size:11px;border:1px solid #666}
 .owner-item-name{font-weight:bold;color:#fff;margin-bottom:8px}
@@ -58,9 +60,17 @@ table{width:100%;border-collapse:collapse;font-size:9px;margin-top:8px;backgroun
 th,td{border:1px solid #ddd;padding:4px;text-align:center}
 th{background:#333;color:#fff;font-weight:bold}
 tr:nth-child(even){background:#f9f9f9}
-.total-row{font-weight:bold;background:#e5e5e5}
+.hidden{display:none}
+.summary-page{background:#fff;padding:20px;border-radius:5px}
+.summary-page-header{font-size:24px;font-weight:bold;text-align:center;margin-bottom:20px}
+.summary-section{background:#f9f9f9;border:2px solid #000;padding:15px;margin:15px 0;border-radius:5px}
+.summary-section-title{font-size:14px;font-weight:bold;margin-bottom:10px;color:#333}
+.summary-line{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #ddd;font-size:12px}
+.summary-line-value{font-weight:bold;color:#000}
+.back-btn{background:#666;color:#fff;padding:10px 20px;border:none;cursor:pointer;border-radius:3px;font-weight:bold;margin-bottom:20px}
+.back-btn:hover{background:#555}
 @media print{
-.sidebar,.finish-btn,.add-row button{display:none}
+.sidebar,.finish-btn,.add-row button,.back-btn{display:none}
 .main-content{margin-left:0;width:100%}
 }
 </style>
@@ -99,7 +109,8 @@ tr:nth-child(even){background:#f9f9f9}
 </div>
 </div>
 
-<button class="run-btn" onclick="runReport()">▶ Run Statement</button>
+<button class="run-btn" onclick="runReport()">▶ Run Owner Statement</button>
+<button class="summary-btn" onclick="runSummary()">📊 View Summary</button>
 <button class="pdf-btn" onclick="downloadPDF()">📥 Download PDF</button>
 
 <button class="settings-toggle" onclick="toggleSettings()">⚙️ Settings</button>
@@ -112,24 +123,25 @@ tr:nth-child(even){background:#f9f9f9}
 
 <div class="main-content">
 <div id="report"></div>
+<div id="summaryPage" class="summary-page hidden"></div>
 </div>
 
 <script>
 
 let owners={
-"ERAN":{percent:0.12,type:"draft"},
-"GHO":{percent:0.10,type:"payout"},
-"1463 Basin Trail":{percent:0.12,type:"payout"},
-"113B-15S Surfside Beach":{percent:0.12,type:"payout"},
-"113B-13N Surfside Beach":{percent:0.12,type:"payout"},
-"115C-15N Surfside Beach":{percent:0.12,type:"payout"},
-"2131 Sanibel Myrtle Beach":{percent:0.15,type:"payout"},
-"1552 Elizabeth Ln Myrtle Beach":{percent:0.15,type:"payout"},
-"469C White River RD Myrtle Beach":{percent:0.12,type:"payout"},
-"4631-301 Wild Iris Drive Myrtle Beach":{percent:0.12,type:"payout"},
-"4679-204 Wild Iris Drive Myrtle Beach":{percent:0.12,type:"payout"},
-"508-1/2 33rd Ave North Myrtle Beach":{percent:0.15,type:"payout"},
-"214-2S 2nd Ave S. North Myrtle Beach":{percent:0.12,type:"payout"}
+"ERAN":{percent:0.12,type:"draft",salesFee:0},
+"GHO":{percent:0.10,type:"payout",salesFee:50},
+"1463 Basin Trail":{percent:0.12,type:"payout",salesFee:75},
+"113B-15S Surfside Beach":{percent:0.12,type:"payout",salesFee:60},
+"113B-13N Surfside Beach":{percent:0.12,type:"payout",salesFee:60},
+"115C-15N Surfside Beach":{percent:0.12,type:"payout",salesFee:60},
+"2131 Sanibel Myrtle Beach":{percent:0.15,type:"payout",salesFee:80},
+"1552 Elizabeth Ln Myrtle Beach":{percent:0.15,type:"payout",salesFee:80},
+"469C White River RD Myrtle Beach":{percent:0.12,type:"payout",salesFee:70},
+"4631-301 Wild Iris Drive Myrtle Beach":{percent:0.12,type:"payout",salesFee:70},
+"4679-204 Wild Iris Drive Myrtle Beach":{percent:0.12,type:"payout",salesFee:70},
+"508-1/2 33rd Ave North Myrtle Beach":{percent:0.15,type:"payout",salesFee:80},
+"214-2S 2nd Ave S. North Myrtle Beach":{percent:0.12,type:"payout",salesFee:70}
 };
 
 // Display owners configuration
@@ -150,6 +162,10 @@ html+=`
 <option value="payout" ${config.type==='payout'?'selected':''}>Payout</option>
 </select>
 </div>
+<div class="owner-item-control">
+<label class="owner-item-label">Sales Person Fee ($)</label>
+<input type="number" step="0.01" min="0" value="${config.salesFee}" onchange="updateOwner('${name}','salesFee',this.value)">
+</div>
 </div>
 `;
 });
@@ -162,6 +178,8 @@ if(field==='percent'){
 owners[name].percent=parseFloat(value);
 }else if(field==='type'){
 owners[name].type=value;
+}else if(field==='salesFee'){
+owners[name].salesFee=parseFloat(value)||0;
 }
 console.log(`Updated ${name}: ${field} = ${value}`);
 }
@@ -195,8 +213,11 @@ function lastDay(y,m){return new Date(y,m,0).getDate()}
 
 let propertyTotals={};
 let masterTotals={};
+let csvData=[];
 
 async function runReport(){
+document.getElementById("report").classList.remove("hidden");
+document.getElementById("summaryPage").classList.add("hidden");
 
 propertyTotals={};
 masterTotals={gross:0,acc:0,clean:0,pmc:0,expenses:0,draft:0,owner:0};
@@ -205,7 +226,7 @@ const file=document.getElementById("fileInput").files[0];
 if(!file)return;
 
 const text=await file.text();
-const rows=Papa.parse(text,{header:true,skipEmptyLines:true}).data;
+csvData=Papa.parse(text,{header:true,skipEmptyLines:true}).data;
 
 const owner=ownerSelect.value;
 const percent=owners[owner].percent;
@@ -219,7 +240,7 @@ const paymentDate=new Date(year,month,5);
 
 let grouped={};
 
-rows.forEach(r=>{
+csvData.forEach(r=>{
 if(!r["CHECK-IN DATE"])return;
 let m=parseInt(r["CHECK-IN DATE"].split("-")[1]);
 let y=parseInt(r["CHECK-IN DATE"].split("-")[0]);
@@ -382,6 +403,94 @@ reportHTML+=`
 });
 
 document.getElementById("report").innerHTML=reportHTML;
+}
+
+function runSummary(){
+const owner=ownerSelect.value;
+const type=owners[owner].type;
+const salesFee=owners[owner].salesFee;
+const percent=owners[owner].percent;
+const month=parseInt(monthSelect.value);
+const year=parseInt(yearSelect.value);
+const endDay=lastDay(year,month);
+
+// Calculate totals from master
+let totalTaxWithheld=0;
+let totalPayout=0;
+
+// Calculate taxes (only for payout type)
+if(type==="payout"){
+csvData.forEach(r=>{
+if(!r["CHECK-IN DATE"])return;
+let m=parseInt(r["CHECK-IN DATE"].split("-")[1]);
+let y=parseInt(r["CHECK-IN DATE"].split("-")[0]);
+if(m!==month||y!==year)return;
+let tax=num(r["TAXES WITHHELD"])||0;
+totalTaxWithheld+=tax;
+totalPayout+=num(r["TOTAL PAYOUT"]);
+});
+}
+
+let summaryHTML=`
+<button class="back-btn" onclick="goBackToStatement()">← Back to Statement</button>
+
+<div class="summary-page-header">OWNER SUMMARY REPORT</div>
+<div style="text-align:center;font-size:14px;margin-bottom:20px">${owner} - ${month}/${endDay}/${year}</div>
+
+<div class="summary-section">
+<div class="summary-section-title">💰 SALES PERSON FEE</div>
+<div class="summary-line">
+<span>Sales Person Commission:</span>
+<span class="summary-line-value">${money(salesFee)}</span>
+</div>
+</div>
+
+${type==="payout"?`
+<div class="summary-section">
+<div class="summary-section-title">🏦 TAX INFORMATION (1099 Reporting)</div>
+<div class="summary-line">
+<span>Total Payout Amount:</span>
+<span class="summary-line-value">${money(totalPayout)}</span>
+</div>
+<div class="summary-line">
+<span>Taxes Withheld:</span>
+<span class="summary-line-value">${money(totalTaxWithheld)}</span>
+</div>
+</div>
+`:""}
+
+<div class="summary-section">
+<div class="summary-section-title">💳 PAYMENT INFORMATION</div>
+<div class="summary-line">
+<span>Owner Type:</span>
+<span class="summary-line-value">${type.toUpperCase()}</span>
+</div>
+<div class="summary-line">
+<span>Amount to ${type==="draft"?"Draft":"Pay"}:</span>
+<span class="summary-line-value">${type==="draft"?money(masterTotals.draft):money(masterTotals.owner)}</span>
+</div>
+</div>
+
+<div class="summary-section">
+<div class="summary-section-title">🏦 PMC TRANSFER</div>
+<div class="summary-line">
+<span>Transfer to PMC Account:</span>
+<span class="summary-line-value">${money(masterTotals.pmc)}</span>
+</div>
+<div style="font-size:10px;color:#666;margin-top:10px">
+This amount needs to be transferred to the PMC bank account
+</div>
+</div>
+`;
+
+document.getElementById("report").classList.add("hidden");
+document.getElementById("summaryPage").classList.remove("hidden");
+document.getElementById("summaryPage").innerHTML=summaryHTML;
+}
+
+function goBackToStatement(){
+document.getElementById("report").classList.remove("hidden");
+document.getElementById("summaryPage").classList.add("hidden");
 }
 
 function downloadPDF(){

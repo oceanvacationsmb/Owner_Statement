@@ -57,14 +57,15 @@ body{font-family:Arial;background:#f5f5f5;color:#000;display:flex}
 .summary-item-amount-master{display:block;font-size:11px;font-weight:bold;color:#000}
 .property{margin-top:20px;background:#fff;padding:12px;border-radius:5px;border:1px solid #ddd}
 .property-title{font-size:14px;font-weight:bold;margin-bottom:3px}
-.property-period{font-size:10px;color:#666;margin-bottom:8px}
+.property-period{font-size:11px;color:#666;margin-bottom:8px}
 table{width:100%;border-collapse:collapse;font-size:9px;margin-top:8px;background:#fff}
 th,td{border:1px solid #ddd;padding:4px;text-align:center}
 th{background:#333;color:#fff;font-weight:bold}
 tr:nth-child(even){background:#f9f9f9}
 .hidden{display:none}
 .summary-page{background:#fff;padding:20px;border-radius:5px}
-.summary-page-header{font-size:24px;font-weight:bold;text-align:center;margin-bottom:20px}
+.summary-page-header{font-size:24px;font-weight:bold;text-align:center;margin-bottom:10px}
+.summary-page-period{font-size:11px;text-align:center;margin-bottom:20px;color:#666}
 .summary-section{background:#f9f9f9;border:2px solid #000;padding:15px;margin:15px 0;border-radius:5px}
 .summary-section-title{font-size:14px;font-weight:bold;margin-bottom:10px;color:#333}
 .summary-line{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #ddd;font-size:12px}
@@ -335,15 +336,15 @@ ${type==="draft"
 ?`
 <div class="summary-item-master"><span class="summary-item-label-master">GROSS PAYOUT</span><span class="summary-item-amount-master">${money(masterTotals.gross)}</span></div>
 <div class="summary-item-master"><span class="summary-item-label-master">NET ACCOMMODATION</span><span class="summary-item-amount-master">${money(masterTotals.acc)}</span></div>
+<div class="summary-item-master"><span class="summary-item-label-master">PMC</span><span class="summary-item-amount-master">${money(masterTotals.pmc)}</span></div>
 <div class="summary-item-master"><span class="summary-item-label-master">CLEANING FEE</span><span class="summary-item-amount-master">${money(masterTotals.clean)}</span></div>
 <div class="summary-item-master"><span class="summary-item-label-master">EXPENSES</span><span class="summary-item-amount-master">$0.00</span></div>
-<div class="summary-item-master"><span class="summary-item-label-master">PMC</span><span class="summary-item-amount-master">${money(masterTotals.pmc)}</span></div>
 <div class="summary-item-master"><span class="summary-item-label-master">BALANCE DUE</span><span class="summary-item-amount-master" id="masterBal">${money(masterTotals.draft)}</span></div>
 `
 :`
 <div class="summary-item-master"><span class="summary-item-label-master">NET ACCOMMODATION</span><span class="summary-item-amount-master">${money(masterTotals.acc)}</span></div>
-<div class="summary-item-master"><span class="summary-item-label-master">EXPENSES</span><span class="summary-item-amount-master">$0.00</span></div>
 <div class="summary-item-master"><span class="summary-item-label-master">PMC</span><span class="summary-item-amount-master">${money(masterTotals.pmc)}</span></div>
+<div class="summary-item-master"><span class="summary-item-label-master">EXPENSES</span><span class="summary-item-amount-master">$0.00</span></div>
 <div class="summary-item-master"><span class="summary-item-label-master">BALANCE DUE</span><span class="summary-item-amount-master" id="masterBal">${money(masterTotals.owner)}</span></div>
 `}
 </div>
@@ -370,15 +371,16 @@ ${type==="draft"
 ?`
 <div class="summary-item"><span class="summary-item-label">GROSS PAYOUT</span><span class="summary-item-amount">${money(p.gross)}</span></div>
 <div class="summary-item"><span class="summary-item-label">NET ACCOMMODATION</span><span class="summary-item-amount">${money(p.acc)}</span></div>
+<div class="summary-item"><span class="summary-item-label">PMC</span><span class="summary-item-amount">${money(p.pmc)}</span></div>
 <div class="summary-item"><span class="summary-item-label">CLEANING FEE</span><span class="summary-item-amount">${money(p.clean)}</span></div>
 <div class="summary-item"><span class="summary-item-label">EXPENSES</span><span class="summary-item-amount" id="exp-${listing}">$0.00</span></div>
-<div class="summary-item"><span class="summary-item-label">PMC</span><span class="summary-item-amount">${money(p.pmc)}</span></div>
 <div class="summary-item"><span class="summary-item-label">BALANCE DUE</span><span class="summary-item-amount" id="bal-${listing}">${money(p.draft)}</span></div>
 `
 :`
 <div class="summary-item"><span class="summary-item-label">NET ACCOMMODATION</span><span class="summary-item-amount">${money(p.acc)}</span></div>
-<div class="summary-item"><span class="summary-item-label">EXPENSES</span><span class="summary-item-amount" id="exp-${listing}">$0.00</span></div>
 <div class="summary-item"><span class="summary-item-label">PMC</span><span class="summary-item-amount">${money(p.pmc)}</span></div>
+<div class="summary-item"><span class="summary-item-label">CLEANING FEE</span><span class="summary-item-amount">${money(p.clean)}</span></div>
+<div class="summary-item"><span class="summary-item-label">EXPENSES</span><span class="summary-item-amount" id="exp-${listing}">$0.00</span></div>
 <div class="summary-item"><span class="summary-item-label">BALANCE DUE</span><span class="summary-item-amount" id="bal-${listing}">${money(p.owner)}</span></div>
 `}
 </div>
@@ -458,17 +460,21 @@ let summaryHTML=`
 <button class="back-btn" onclick="goBackToStatement()">← Back to Statement</button>
 
 <div class="summary-page-header">OWNER SUMMARY REPORT</div>
-<div style="text-align:center;font-size:14px;margin-bottom:20px">${owner} - ${month}/${endDay}/${year}</div>
+<div class="summary-page-period"><strong>PERIOD:</strong> ${month}/1/${year} - ${month}/${endDay}/${year}</div>
 
 <div class="summary-section">
-<div class="summary-section-title">💰 SALES PERSON FEE</div>
+<div class="summary-section-title">💰 ACCOMMODATION & SALES PERSON FEE</div>
 <div class="summary-line">
-<span>Sales Person Fee Rate:</span>
-<span class="summary-line-value">${salesFeePercent}%</span>
+<span>Total Accommodation:</span>
+<span class="summary-line-value">${money(masterTotals.acc)}</span>
 </div>
 <div class="summary-line">
 <span>PMC Amount (Base):</span>
 <span class="summary-line-value">${money(masterTotals.pmc)}</span>
+</div>
+<div class="summary-line">
+<span>Sales Person Fee Rate:</span>
+<span class="summary-line-value">${salesFeePercent}%</span>
 </div>
 <div class="summary-line" style="border-bottom:2px solid #000;padding-top:8px;padding-bottom:8px">
 <span style="font-size:13px"><strong>Sales Person Amount Due:</strong></span>
@@ -476,7 +482,7 @@ let summaryHTML=`
 </div>
 </div>
 
-${type==="payout"?`
+${type==="payout" && totalTaxWithheld>0?`
 <div class="summary-section">
 <div class="summary-section-title">🏦 TAX INFORMATION (1099 Reporting)</div>
 <div class="summary-line">
@@ -485,13 +491,17 @@ ${type==="payout"?`
 </div>
 <div class="summary-line">
 <span>Taxes Withheld:</span>
-<span class="summary-line-value">${totalTaxWithheld>0?money(totalTaxWithheld):"$0.00"}</span>
+<span class="summary-line-value">${money(totalTaxWithheld)}</span>
 </div>
 </div>
 `:""}
 
 <div class="summary-section">
 <div class="summary-section-title">💳 PAYMENT INFORMATION</div>
+<div class="summary-line">
+<span>Owner Name:</span>
+<span class="summary-line-value">${owner}</span>
+</div>
 <div class="summary-line">
 <span>Owner Type:</span>
 <span class="summary-line-value">${type.toUpperCase()}</span>

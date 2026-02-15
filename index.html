@@ -30,8 +30,6 @@ body{font-family:Arial;background:#f5f5f5;color:#000;display:flex}
 .owner-item-label{font-size:10px;color:#bbb;display:block;margin-bottom:3px}
 .owner-item-control input,.owner-item-control select{width:100%;padding:5px;background:#666;color:#fff;border:1px solid #777;border-radius:2px;font-size:10px}
 .owner-item-control input:focus,.owner-item-control select:focus{outline:none;border-color:#fff}
-.owner-item-button{width:100%;padding:6px;background:#333;color:#fff;border:1px solid #666;border-radius:2px;cursor:pointer;font-size:10px;font-weight:bold;margin-top:5px}
-.owner-item-button:hover{background:#222}
 .main-content{margin-left:250px;padding:20px;width:calc(100% - 250px)}
 .page-break{page-break-after:always}
 .header{display:flex;justify-content:space-between;margin-bottom:20px}
@@ -41,11 +39,12 @@ body{font-family:Arial;background:#f5f5f5;color:#000;display:flex}
 .owner{text-align:center;font-size:18px;font-weight:bold;margin-top:5px}
 .period{text-align:center;font-size:12px;margin-bottom:20px}
 .section-title{font-size:18px;font-weight:bold;margin-top:10px;margin-bottom:10px}
-.summary-box{border:2px solid #000;padding:15px;margin:15px 0;background:#fafafa;border-radius:5px}
-.summary-header{font-weight:bold;font-size:14px;margin-bottom:10px;color:#333}
-.summary{display:flex;justify-content:space-between;font-size:12px;gap:15px;flex-wrap:wrap}
-.summary div{text-align:center;flex:1;min-width:120px}
-.summary strong{display:block;font-size:14px;margin-top:4px;color:#000}
+.summary-box{border:2px solid #000;padding:20px;margin:15px 0;background:#fafafa;border-radius:5px}
+.summary-header{font-weight:bold;font-size:14px;margin-bottom:20px;color:#333;text-align:center}
+.summary{display:flex;justify-content:space-around;font-size:11px;gap:10px;flex-wrap:wrap}
+.summary-item{text-align:center;flex:1;min-width:140px}
+.summary-item-label{display:block;font-size:11px;font-weight:bold;color:#333;margin-bottom:8px}
+.summary-item-amount{display:block;font-size:16px;font-weight:bold;color:#000}
 .property{margin-top:30px;background:#fff;padding:15px;border-radius:5px;border:1px solid #ddd}
 .property-title{font-size:16px;font-weight:bold;margin-bottom:5px}
 .property-period{font-size:11px;color:#666;margin-bottom:10px}
@@ -282,21 +281,24 @@ masterTotals.owner+=pOwner;
 /* MASTER SUMMARY PAGE */
 
 reportHTML+=`
-<div class="section-title">SUMMARY</div>
 <div class="summary-box">
 <div class="summary-header">SUMMARY</div>
 <div class="summary">
 ${type==="draft"
 ?`
-<div>Gross<strong>${money(masterTotals.gross)}</strong></div>
-<div>Accommodation<strong>${money(masterTotals.acc)}</strong></div>
-<div>Cleaning<strong>${money(masterTotals.clean)}</strong></div>
-<div>Draft<strong id="masterBal">${money(masterTotals.draft)}</strong></div>
+<div class="summary-item"><span class="summary-item-label">GROSS PAYOUT</span><span class="summary-item-amount">${money(masterTotals.gross)}</span></div>
+<div class="summary-item"><span class="summary-item-label">NET ACCOMMODATION</span><span class="summary-item-amount">${money(masterTotals.acc)}</span></div>
+<div class="summary-item"><span class="summary-item-label">CLEANING FEE</span><span class="summary-item-amount">${money(masterTotals.clean)}</span></div>
+<div class="summary-item"><span class="summary-item-label">EXPENSES</span><span class="summary-item-amount">$0.00</span></div>
+<div class="summary-item"><span class="summary-item-label">PMC</span><span class="summary-item-amount">${money(masterTotals.pmc)}</span></div>
+<div class="summary-item"><span class="summary-item-label">BALANCE DUE</span><span class="summary-item-amount" id="masterBal">${money(masterTotals.draft)}</span></div>
 `
 :`
-<div>Accommodation<strong>${money(masterTotals.acc)}</strong></div>
-<div>PMC<strong>${money(masterTotals.pmc)}</strong></div>
-<div>Due<strong id="masterBal">${money(masterTotals.owner)}</strong></div>
+<div class="summary-item"><span class="summary-item-label">GROSS PAYOUT</span><span class="summary-item-amount">${money(masterTotals.gross)}</span></div>
+<div class="summary-item"><span class="summary-item-label">NET ACCOMMODATION</span><span class="summary-item-amount">${money(masterTotals.acc)}</span></div>
+<div class="summary-item"><span class="summary-item-label">EXPENSES</span><span class="summary-item-amount">$0.00</span></div>
+<div class="summary-item"><span class="summary-item-label">PMC</span><span class="summary-item-amount">${money(masterTotals.pmc)}</span></div>
+<div class="summary-item"><span class="summary-item-label">BALANCE DUE</span><span class="summary-item-amount" id="masterBal">${money(masterTotals.owner)}</span></div>
 `}
 </div>
 </div>
@@ -320,14 +322,19 @@ reportHTML+=`
 <div class="summary">
 ${type==="draft"
 ?`
-<div>Total Property Payout<strong>${money(p.gross)}</strong></div>
-<div>Total PMC<strong>${money(p.pmc)}</strong></div>
-<div>Total Cleaning<strong>${money(p.clean)}</strong></div>
-<div>Balance Due<strong id="bal-${listing}">${money(p.draft)}</strong></div>
+<div class="summary-item"><span class="summary-item-label">GROSS PAYOUT</span><span class="summary-item-amount">${money(p.gross)}</span></div>
+<div class="summary-item"><span class="summary-item-label">NET ACCOMMODATION</span><span class="summary-item-amount">${money(p.acc)}</span></div>
+<div class="summary-item"><span class="summary-item-label">CLEANING FEE</span><span class="summary-item-amount">${money(p.clean)}</span></div>
+<div class="summary-item"><span class="summary-item-label">EXPENSES</span><span class="summary-item-amount" id="exp-${listing}">$0.00</span></div>
+<div class="summary-item"><span class="summary-item-label">PMC</span><span class="summary-item-amount">${money(p.pmc)}</span></div>
+<div class="summary-item"><span class="summary-item-label">BALANCE DUE</span><span class="summary-item-amount" id="bal-${listing}">${money(p.draft)}</span></div>
 `
 :`
-<div>Total PMC<strong>${money(p.pmc)}</strong></div>
-<div>Due to Owner<strong id="bal-${listing}">${money(p.owner)}</strong></div>
+<div class="summary-item"><span class="summary-item-label">GROSS PAYOUT</span><span class="summary-item-amount">${money(p.gross)}</span></div>
+<div class="summary-item"><span class="summary-item-label">NET ACCOMMODATION</span><span class="summary-item-amount">${money(p.acc)}</span></div>
+<div class="summary-item"><span class="summary-item-label">EXPENSES</span><span class="summary-item-amount" id="exp-${listing}">$0.00</span></div>
+<div class="summary-item"><span class="summary-item-label">PMC</span><span class="summary-item-amount">${money(p.pmc)}</span></div>
+<div class="summary-item"><span class="summary-item-label">BALANCE DUE</span><span class="summary-item-amount" id="bal-${listing}">${money(p.owner)}</span></div>
 `}
 </div>
 </div>

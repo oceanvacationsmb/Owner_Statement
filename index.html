@@ -22,12 +22,14 @@ body{font-family:Arial;background:#f5f5f5;color:#000;display:flex}
 .summary-btn:hover{background:#218838}
 .pdf-btn{background:#444;color:#fff;margin-top:10px}
 .pdf-btn:hover{background:#555}
+.save-btn{background:#007bff;color:#fff;margin-top:5px;font-size:12px}
+.save-btn:hover{background:#0056b3}
 .settings-toggle{background:#666;color:#fff;padding:10px;border:none;cursor:pointer;width:100%;text-align:left;font-weight:bold;border-radius:3px;margin-bottom:10px;font-size:14px}
 .settings-toggle:hover{background:#777}
 .settings-box{display:none;background:#444;padding:15px;border-radius:3px;margin-top:10px;max-height:600px;overflow-y:auto}
 .settings-box.open{display:block}
 .owner-item{background:#555;padding:12px;margin-bottom:10px;border-radius:3px;font-size:11px;border:1px solid #666}
-.owner-item-name{font-weight:bold;color:#fff;margin-bottom:8px}
+.owner-item-name{font-weight:bold;color:#fff;margin-bottom:8px;font-size:12px}
 .owner-item-control{margin-bottom:8px}
 .owner-item-label{font-size:10px;color:#bbb;display:block;margin-bottom:3px}
 .owner-item-control input,.owner-item-control select{width:100%;padding:5px;background:#666;color:#fff;border:1px solid #777;border-radius:2px;font-size:10px}
@@ -69,8 +71,9 @@ tr:nth-child(even){background:#f9f9f9}
 .summary-line-value{font-weight:bold;color:#000}
 .back-btn{background:#666;color:#fff;padding:10px 20px;border:none;cursor:pointer;border-radius:3px;font-weight:bold;margin-bottom:20px}
 .back-btn:hover{background:#555}
+.save-success{background:#d4edda;color:#155724;padding:10px;border-radius:3px;margin-bottom:10px;display:none}
 @media print{
-.sidebar,.finish-btn,.add-row button,.back-btn{display:none}
+.sidebar,.finish-btn,.add-row button,.back-btn,.save-btn{display:none}
 .main-content{margin-left:0;width:100%}
 }
 </style>
@@ -84,7 +87,7 @@ tr:nth-child(even){background:#f9f9f9}
 <div class="sidebar-section">
 <label class="sidebar-label">Select Owner</label>
 <div class="sidebar-control">
-<select id="owner"></select>
+<select id="owner" onchange="updateSettingsDisplay()"></select>
 </div>
 </div>
 
@@ -115,8 +118,10 @@ tr:nth-child(even){background:#f9f9f9}
 
 <button class="settings-toggle" onclick="toggleSettings()">⚙️ Settings</button>
 <div class="settings-box" id="settingsBox">
-<h4 style="color:#fff;margin-bottom:10px">Owner Configuration</h4>
+<div class="save-success" id="saveSuccess">✓ Settings saved!</div>
+<h4 style="color:#fff;margin-bottom:10px" id="settingsTitle">Owner Settings</h4>
 <div id="ownersList"></div>
+<button class="save-btn" onclick="saveSettings()">💾 Save Settings</button>
 </div>
 
 </div>
@@ -129,47 +134,62 @@ tr:nth-child(even){background:#f9f9f9}
 <script>
 
 let owners={
-"ERAN":{percent:0.12,type:"draft",salesFee:0},
-"GHO":{percent:0.10,type:"payout",salesFee:50},
-"1463 Basin Trail":{percent:0.12,type:"payout",salesFee:75},
-"113B-15S Surfside Beach":{percent:0.12,type:"payout",salesFee:60},
-"113B-13N Surfside Beach":{percent:0.12,type:"payout",salesFee:60},
-"115C-15N Surfside Beach":{percent:0.12,type:"payout",salesFee:60},
-"2131 Sanibel Myrtle Beach":{percent:0.15,type:"payout",salesFee:80},
-"1552 Elizabeth Ln Myrtle Beach":{percent:0.15,type:"payout",salesFee:80},
-"469C White River RD Myrtle Beach":{percent:0.12,type:"payout",salesFee:70},
-"4631-301 Wild Iris Drive Myrtle Beach":{percent:0.12,type:"payout",salesFee:70},
-"4679-204 Wild Iris Drive Myrtle Beach":{percent:0.12,type:"payout",salesFee:70},
-"508-1/2 33rd Ave North Myrtle Beach":{percent:0.15,type:"payout",salesFee:80},
-"214-2S 2nd Ave S. North Myrtle Beach":{percent:0.12,type:"payout",salesFee:70}
+"ERAN":{percent:0.12,type:"draft",salesFeePercent:5},
+"GHO":{percent:0.10,type:"payout",salesFeePercent:5},
+"1463 Basin Trail":{percent:0.12,type:"payout",salesFeePercent:5},
+"113B-15S Surfside Beach":{percent:0.12,type:"payout",salesFeePercent:5},
+"113B-13N Surfside Beach":{percent:0.12,type:"payout",salesFeePercent:5},
+"115C-15N Surfside Beach":{percent:0.12,type:"payout",salesFeePercent:5},
+"2131 Sanibel Myrtle Beach":{percent:0.15,type:"payout",salesFeePercent:5},
+"1552 Elizabeth Ln Myrtle Beach":{percent:0.15,type:"payout",salesFeePercent:5},
+"469C White River RD Myrtle Beach":{percent:0.12,type:"payout",salesFeePercent:5},
+"4631-301 Wild Iris Drive Myrtle Beach":{percent:0.12,type:"payout",salesFeePercent:5},
+"4679-204 Wild Iris Drive Myrtle Beach":{percent:0.12,type:"payout",salesFeePercent:5},
+"508-1/2 33rd Ave North Myrtle Beach":{percent:0.15,type:"payout",salesFeePercent:10},
+"214-2S 2nd Ave S. North Myrtle Beach":{percent:0.12,type:"payout",salesFeePercent:10}
 };
 
-// Display owners configuration
-function displayOwnersSetup(){
-let html="";
-Object.entries(owners).forEach(([name,config])=>{
-html+=`
+// Load settings from localStorage
+function loadSettings(){
+const saved=localStorage.getItem("ownerSettings");
+if(saved){
+owners=JSON.parse(saved);
+}
+}
+
+// Save settings to localStorage
+function saveSettings(){
+localStorage.setItem("ownerSettings",JSON.stringify(owners));
+const btn=document.getElementById("saveSuccess");
+btn.style.display="block";
+setTimeout(()=>{btn.style.display="none"},3000);
+}
+
+// Display only selected owner settings
+function updateSettingsDisplay(){
+const selectedOwner=document.getElementById("owner").value;
+let html=`
 <div class="owner-item">
-<div class="owner-item-name">👤 ${name}</div>
+<div class="owner-item-name">👤 ${selectedOwner}</div>
 <div class="owner-item-control">
 <label class="owner-item-label">Commission (%)</label>
-<input type="number" step="0.01" min="0" max="100" value="${(config.percent*100)}" onchange="updateOwner('${name}','percent',this.value/100)">
+<input type="number" step="0.01" min="0" max="100" value="${(owners[selectedOwner].percent*100)}" onchange="updateOwner('${selectedOwner}','percent',this.value/100)">
 </div>
 <div class="owner-item-control">
 <label class="owner-item-label">Type</label>
-<select onchange="updateOwner('${name}','type',this.value)">
-<option value="draft" ${config.type==='draft'?'selected':''}>Draft</option>
-<option value="payout" ${config.type==='payout'?'selected':''}>Payout</option>
+<select onchange="updateOwner('${selectedOwner}','type',this.value)">
+<option value="draft" ${owners[selectedOwner].type==='draft'?'selected':''}>Draft</option>
+<option value="payout" ${owners[selectedOwner].type==='payout'?'selected':''}>Payout</option>
 </select>
 </div>
 <div class="owner-item-control">
-<label class="owner-item-label">Sales Person Fee ($)</label>
-<input type="number" step="0.01" min="0" value="${config.salesFee}" onchange="updateOwner('${name}','salesFee',this.value)">
+<label class="owner-item-label">Sales Person Fee (%)</label>
+<input type="number" step="0.01" min="0" max="100" value="${owners[selectedOwner].salesFeePercent}" onchange="updateOwner('${selectedOwner}','salesFeePercent',this.value)">
 </div>
 </div>
 `;
-});
 document.getElementById("ownersList").innerHTML=html;
+document.getElementById("settingsTitle").textContent=`${selectedOwner} - Settings`;
 }
 
 // Update owner settings
@@ -178,8 +198,8 @@ if(field==='percent'){
 owners[name].percent=parseFloat(value);
 }else if(field==='type'){
 owners[name].type=value;
-}else if(field==='salesFee'){
-owners[name].salesFee=parseFloat(value)||0;
+}else if(field==='salesFeePercent'){
+owners[name].salesFeePercent=parseFloat(value)||0;
 }
 console.log(`Updated ${name}: ${field} = ${value}`);
 }
@@ -408,13 +428,16 @@ document.getElementById("report").innerHTML=reportHTML;
 function runSummary(){
 const owner=ownerSelect.value;
 const type=owners[owner].type;
-const salesFee=owners[owner].salesFee;
+const salesFeePercent=owners[owner].salesFeePercent;
 const percent=owners[owner].percent;
 const month=parseInt(monthSelect.value);
 const year=parseInt(yearSelect.value);
 const endDay=lastDay(year,month);
 
-// Calculate totals from master
+// Calculate sales fee (PMC * sales fee %)
+const salesFeeAmount=masterTotals.pmc*(salesFeePercent/100);
+
+// Calculate taxes (only for payout type)
 let totalTaxWithheld=0;
 let totalPayout=0;
 
@@ -440,8 +463,16 @@ let summaryHTML=`
 <div class="summary-section">
 <div class="summary-section-title">💰 SALES PERSON FEE</div>
 <div class="summary-line">
-<span>Sales Person Commission:</span>
-<span class="summary-line-value">${money(salesFee)}</span>
+<span>Sales Person Fee Rate:</span>
+<span class="summary-line-value">${salesFeePercent}%</span>
+</div>
+<div class="summary-line">
+<span>PMC Amount (Base):</span>
+<span class="summary-line-value">${money(masterTotals.pmc)}</span>
+</div>
+<div class="summary-line" style="border-bottom:2px solid #000;padding-top:8px;padding-bottom:8px">
+<span style="font-size:13px"><strong>Sales Person Amount Due:</strong></span>
+<span class="summary-line-value" style="font-size:13px">${money(salesFeeAmount)}</span>
 </div>
 </div>
 
@@ -454,7 +485,7 @@ ${type==="payout"?`
 </div>
 <div class="summary-line">
 <span>Taxes Withheld:</span>
-<span class="summary-line-value">${money(totalTaxWithheld)}</span>
+<span class="summary-line-value">${totalTaxWithheld>0?money(totalTaxWithheld):"$0.00"}</span>
 </div>
 </div>
 `:""}
@@ -465,9 +496,9 @@ ${type==="payout"?`
 <span>Owner Type:</span>
 <span class="summary-line-value">${type.toUpperCase()}</span>
 </div>
-<div class="summary-line">
-<span>Amount to ${type==="draft"?"Draft":"Pay"}:</span>
-<span class="summary-line-value">${type==="draft"?money(masterTotals.draft):money(masterTotals.owner)}</span>
+<div class="summary-line" style="border-bottom:2px solid #000;padding-top:8px;padding-bottom:8px">
+<span style="font-size:13px"><strong>Amount to ${type==="draft"?"Draft":"Pay"}:</strong></span>
+<span class="summary-line-value" style="font-size:13px">${type==="draft"?money(masterTotals.draft):money(masterTotals.owner)}</span>
 </div>
 </div>
 
@@ -499,7 +530,8 @@ html2pdf().set({margin:5,jsPDF:{unit:"mm",format:"a4"}})
 }
 
 // Initialize
-displayOwnersSetup();
+loadSettings();
+updateSettingsDisplay();
 
 </script>
 

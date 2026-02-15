@@ -8,7 +8,8 @@
 
 <style>
 body{margin:0;font-family:Arial;background:#fff;color:#000}
-.topbar{background:#f2f2f2;padding:10px;display:flex;gap:10px;flex-wrap:wrap;border-bottom:2px solid #000}
+.topbar{background:#f2f2f2;padding:10px;display:flex;gap:10px;flex-wrap:wrap;border-bottom:2px solid #000;align-items:center}
+select,input{padding:5px;font-size:12px}
 button{padding:8px 16px;font-weight:bold;border:none;cursor:pointer}
 .run-btn{background:#000;color:#fff}
 .pdf-btn{background:#444;color:#fff}
@@ -31,11 +32,10 @@ button{padding:8px 16px;font-weight:bold;border:none;cursor:pointer}
 table{width:100%;border-collapse:collapse;font-size:10px;margin-top:10px}
 th,td{border:1px solid #000;padding:4px;text-align:center}
 th{background:#000;color:#fff}
-.total-row{font-weight:bold;background:#e5e5e5}
 .expense-table input,.expense-table select{width:100%;font-size:10px}
-.attachment{margin-top:10px}
+.locked-field{background:#ddd}
 @media print{
-.topbar,.finish-btn,.add-row button{display:none}
+.topbar,.finish-btn,.add-row{display:none}
 }
 </style>
 </head>
@@ -43,7 +43,9 @@ th{background:#000;color:#fff}
 <body>
 
 <div class="topbar">
-<select id="owner"></select>
+<select id="owner" onchange="updateOwnerMeta()"></select>
+<input type="text" id="percent" class="locked-field" readonly>
+<input type="text" id="type" class="locked-field" readonly>
 <select id="month"></select>
 <select id="year"></select>
 <input type="file" id="fileInput" accept=".csv">
@@ -55,14 +57,34 @@ th{background:#000;color:#fff}
 
 <script>
 
+/* OWNERS */
 const owners={
 "ERAN MARON":{percent:0.12,type:"draft"},
-"GHO":{percent:0.10,type:"payout"}
+"GHO":{percent:0.10,type:"payout"},
+"1463 Basin Trail":{percent:0.12,type:"payout"},
+"113B-15S Surfside Beach":{percent:0.12,type:"payout"},
+"113B-13N Surfside Beach":{percent:0.12,type:"payout"},
+"115C-15N Surfside Beach":{percent:0.12,type:"payout"},
+"2131 Sanibel Myrtle Beach":{percent:0.15,type:"payout"},
+"1552 Elizabeth Ln Myrtle Beach":{percent:0.15,type:"payout"},
+"469C White River RD Myrtle Beach":{percent:0.12,type:"payout"},
+"4631-301 Wild Iris Drive Myrtle Beach":{percent:0.12,type:"payout"},
+"4679-204 Wild Iris Drive Myrtle Beach":{percent:0.12,type:"payout"},
+"508-1/2 33rd Ave North Myrtle Beach":{percent:0.15,type:"payout"},
+"214-2S 2nd Ave S. North Myrtle Beach":{percent:0.12,type:"payout"}
 };
 
 const ownerSelect=document.getElementById("owner");
 Object.keys(owners).forEach(o=>ownerSelect.innerHTML+=`<option>${o}</option>`);
 
+function updateOwnerMeta(){
+const o=ownerSelect.value;
+document.getElementById("percent").value=(owners[o].percent*100).toFixed(0)+"%";
+document.getElementById("type").value=owners[o].type.toUpperCase();
+}
+updateOwnerMeta();
+
+/* MONTH / YEAR */
 const monthSelect=document.getElementById("month");
 const yearSelect=document.getElementById("year");
 const now=new Date();
@@ -77,6 +99,7 @@ yearSelect.innerHTML+=`<option>${y}</option>`;
 }
 yearSelect.value=now.getFullYear();
 
+/* HELPERS */
 function num(v){return parseFloat((v||"0").toString().replace(/[$,]/g,""))||0}
 function money(x){return "$"+(Number(x)||0).toFixed(2)}
 function stay(i,o){if(!i||!o)return"";let a=i.split("-"),b=o.split("-");return a[1]+"/"+a[2]+" - "+b[1]+"/"+b[2]}
@@ -88,7 +111,7 @@ let masterTotals={};
 async function runReport(){
 
 propertyTotals={};
-masterTotals={gross:0,acc:0,clean:0,pmc:0,expenses:0,draft:0,owner:0};
+masterTotals={gross:0,acc:0,clean:0,pmc:0,draft:0,owner:0};
 
 const file=document.getElementById("fileInput").files[0];
 if(!file)return;
@@ -119,10 +142,10 @@ if(!grouped[listing])grouped[listing]=[];
 grouped[listing].push(r);
 });
 
-let reportHTML="";
+let html="";
 
 /* HEADER */
-reportHTML+=`
+html+=`
 <div class="header">
 <div>
 <div class="company">OCEAN VACATIONS</div>
@@ -143,8 +166,8 @@ Payment Date: ${paymentDate.toLocaleDateString()}
 <div class="period">${month}/1/${year} - ${month}/${endDay}/${year}</div>
 `;
 
+/* TOTAL CALCULATION */
 Object.keys(grouped).forEach(listing=>{
-
 let pGross=0,pAcc=0,pClean=0,pPMC=0,pDraft=0,pOwner=0;
 
 grouped[listing].forEach(r=>{
@@ -163,7 +186,7 @@ pDraft+=draft;
 pOwner+=ownerPay;
 });
 
-propertyTotals[listing]={gross:pGross,acc:pAcc,clean:pClean,pmc:pPMC,draft:pDraft,owner:pOwner,expenses:0};
+propertyTotals[listing]={gross:pGross,acc:pAcc,clean:pClean,pmc:pPMC,draft:pDraft,owner:pOwner};
 
 masterTotals.gross+=pGross;
 masterTotals.acc+=pAcc;
@@ -173,9 +196,8 @@ masterTotals.draft+=pDraft;
 masterTotals.owner+=pOwner;
 });
 
-/* MASTER SUMMARY PAGE */
-
-reportHTML+=`
+/* MASTER SUMMARY */
+html+=`
 <div class="section-title">SUMMARY</div>
 <div class="summary-box">
 <div class="summary">
@@ -184,141 +206,21 @@ ${type==="draft"
 <div>Gross<strong>${money(masterTotals.gross)}</strong></div>
 <div>Accommodation<strong>${money(masterTotals.acc)}</strong></div>
 <div>Cleaning<strong>${money(masterTotals.clean)}</strong></div>
-<div>Expenses<strong id="masterExp">$0.00</strong></div>
-<div>Draft<strong id="masterBal">${money(masterTotals.draft)}</strong></div>
+<div>Draft<strong>${money(masterTotals.draft)}</strong></div>
 `
 :`
 <div>Accommodation<strong>${money(masterTotals.acc)}</strong></div>
 <div>PMC<strong>${money(masterTotals.pmc)}</strong></div>
-<div>Expenses<strong id="masterExp">$0.00</strong></div>
-<div>Due<strong id="masterBal">${money(masterTotals.owner)}</strong></div>
+<div>Due<strong>${money(masterTotals.owner)}</strong></div>
 `}
 </div>
 </div>
-
-<div class="page-break"></div>
 `;
 
-/* PROPERTY PAGES */
-
-Object.keys(grouped).forEach(listing=>{
-
-let p=propertyTotals[listing];
-
-reportHTML+=`
-<div class="property">
-<div class="property-title">${listing}</div>
-<div class="period">${month}/1/${year} - ${month}/${endDay}/${year}</div>
-
-<div class="summary-box">
-<div class="summary">
-${type==="draft"
-?`
-<div>Total Property Payout<strong>${money(p.gross)}</strong></div>
-<div>Total PMC<strong>${money(p.pmc)}</strong></div>
-<div>Total Cleaning<strong>${money(p.clean)}</strong></div>
-<div>Total Expenses<strong id="exp-${listing}">$0.00</strong></div>
-<div>Balance Due<strong id="bal-${listing}">${money(p.draft)}</strong></div>
-`
-:`
-<div>Total PMC<strong>${money(p.pmc)}</strong></div>
-<div>Total Expenses<strong id="exp-${listing}">$0.00</strong></div>
-<div>Due to Owner<strong id="bal-${listing}">${money(p.owner)}</strong></div>
-`}
-</div>
-</div>
-
-<table>
-<tr>
-<th>Reservation</th>
-<th>Stay</th>
-<th>Accommodation</th>
-<th>PMC</th>
-${type==="draft"?"<th>Cleaning</th><th>Draft</th>":"<th>Owner</th>"}
-</tr>
-`;
-
-grouped[listing].forEach(r=>{
-let acc=num(r["ACCOMMODATION FARE"])-num(r["MARKUP"]);
-let clean=num(r["CLEANING FARE"]);
-let pmc=acc*percent;
-let draft=pmc+clean;
-let ownerPay=acc-pmc;
-
-reportHTML+=`
-<tr>
-<td>${r["CONFIRMATION CODE"]}</td>
-<td>${stay(r["CHECK-IN DATE"],r["CHECK-OUT DATE"])}</td>
-<td>${money(acc)}</td>
-<td>${money(pmc)}</td>
-${type==="draft"
-?`<td>${money(clean)}</td><td>${money(draft)}</td>`
-:`<td>${money(ownerPay)}</td>`}
-</tr>
-`;
-});
-
-reportHTML+=`
-</table>
-
-<table class="expense-table" id="expense-${listing}">
-<tr>
-<th>Type</th>
-<th>Description</th>
-<th>Amount</th>
-</tr>
-<tr class="add-row">
-<td>
-<select>
-<option>Maintenance</option>
-<option>Repair</option>
-<option>Pool Cleaning</option>
-<option>Pest Control</option>
-<option>Purchase</option>
-<option>Cleaning</option>
-<option>Service</option>
-</select>
-</td>
-<td><input type="text"></td>
-<td><input type="number" step="0.01"></td>
-</tr>
-</table>
-
-<input type="file" accept=".pdf,.jpg,.jpeg,.png" onchange="attachFile(event,'${listing}')">
-
-<div id="attachment-${listing}" class="attachment"></div>
-
-<button class="finish-btn" onclick="finishExpenses('${listing}',this)">Finish Expenses</button>
-
-</div>
-
-<div class="page-break"></div>
-`;
-});
-
-document.getElementById("report").innerHTML=reportHTML;
+document.getElementById("report").innerHTML=html;
 }
 
-/* EXPENSE LOGIC */
-function finishExpenses(listing,btn){
-let table=document.getElementById(`expense-${listing}`);
-table.querySelector(".add-row").remove();
-btn.remove();
-}
-
-/* ATTACH FILE */
-function attachFile(event,listing){
-let file=event.target.files[0];
-if(!file)return;
-
-let reader=new FileReader();
-reader.onload=function(e){
-let container=document.getElementById(`attachment-${listing}`);
-container.innerHTML=`<embed src="${e.target.result}" width="100%" height="600px">`;
-}
-reader.readAsDataURL(file);
-}
-
+/* PDF */
 function downloadPDF(){
 html2pdf().set({margin:5,jsPDF:{unit:"mm",format:"a4"}})
 .from(document.getElementById("report")).save("Reservation_Report.pdf");

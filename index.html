@@ -126,7 +126,6 @@ let owners={
 "214-2S 2nd Ave S. North Myrtle Beach":{percent:0.12,type:"payout"}
 };
 
-// Display owners configuration
 function displayOwnersSetup(){
 let html="";
 Object.entries(owners).forEach(([name,config])=>{
@@ -150,17 +149,14 @@ html+=`
 document.getElementById("ownersList").innerHTML=html;
 }
 
-// Update owner settings
 function updateOwner(name,field,value){
 if(field==='percent'){
 owners[name].percent=parseFloat(value);
 }else if(field==='type'){
 owners[name].type=value;
 }
-console.log(`Updated ${name}: ${field} = ${value}`);
 }
 
-// Toggle settings box
 function toggleSettings(){
 document.getElementById("settingsBox").classList.toggle("open");
 }
@@ -226,7 +222,6 @@ grouped[listing].push(r);
 
 let reportHTML="";
 
-/* HEADER */
 reportHTML+=`
 <div class="header">
 <div>
@@ -278,8 +273,6 @@ masterTotals.draft+=pDraft;
 masterTotals.owner+=pOwner;
 });
 
-/* MASTER SUMMARY PAGE */
-
 reportHTML+=`
 <div class="summary-box">
 <div class="summary-header">SUMMARY</div>
@@ -305,8 +298,6 @@ ${type==="draft"
 
 <div class="page-break"></div>
 `;
-
-/* PROPERTY PAGES */
 
 Object.keys(grouped).forEach(listing=>{
 
@@ -385,7 +376,6 @@ html2pdf().set({margin:5,jsPDF:{unit:"mm",format:"a4"}})
 .from(document.getElementById("report")).save("Reservation_Report.pdf");
 }
 
-// Initialize
 displayOwnersSetup();
 
 </script>
